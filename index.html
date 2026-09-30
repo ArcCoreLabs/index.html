@@ -310,6 +310,33 @@ input,select,textarea{font-family:inherit;font-size:13px}
 .rule-addr select{flex:0 0 auto}.rule-addr input{flex:1;min-width:0;width:100%}
 .rule-grid>input,.rule-grid>select{width:100%}
 @media(max-width:560px){.rule-grid{grid-template-columns:1fr 1fr}}
+
+/* palette info badge + inspector dict button */
+.pal-item{position:relative}
+.pal-info{position:absolute;top:5px;right:6px;width:16px;height:16px;border-radius:50%;border:1px solid var(--border2);
+  color:var(--muted);font-size:10px;font-weight:700;font-style:italic;display:flex;align-items:center;justify-content:center;
+  background:var(--panel);line-height:1}
+.pal-info:hover{color:var(--accent);border-color:var(--accent)}
+.insp-dict{margin-left:auto;width:30px;height:30px;border-radius:8px;background:var(--panel2);border:1px solid var(--border);
+  color:var(--muted);font-size:15px;flex-shrink:0;align-self:flex-start}
+.insp-dict:hover{color:var(--accent);border-color:var(--accent)}
+/* dictionary */
+.dict-card{background:var(--panel2);border:1px solid var(--border);border-radius:11px;margin-bottom:8px;overflow:hidden}
+.dict-head{display:flex;align-items:center;gap:12px;padding:11px 12px;cursor:pointer}
+.dict-ic{width:38px;height:38px;flex-shrink:0;border-radius:9px;background:var(--panel);border:1px solid var(--border);display:flex;align-items:center;justify-content:center}
+.dict-ic svg{width:22px;height:22px}
+.dict-meta{flex:1;min-width:0}
+.dict-name{font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dict-layer{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--accent);background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.25);padding:2px 6px;border-radius:20px}
+.dict-desc{font-size:12px;color:var(--muted);margin-top:2px}
+.dict-caret{color:var(--muted2);transition:transform .2s;flex-shrink:0}
+.dict-card.open .dict-caret{transform:rotate(180deg)}
+.dict-body{display:none;padding:0 12px 12px 62px}
+.dict-card.open .dict-body{display:block}
+.dict-body p{font-size:13px;color:var(--muted);line-height:1.55;margin-top:7px}
+.dict-body b{color:var(--text)}
+.dict-cmp{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:8px 10px;margin-top:9px!important}
+@media(max-width:560px){.dict-body{padding-left:12px}}
 .kbd{font-family:var(--mono);font-size:11px;background:var(--panel3);border:1px solid var(--border);
   border-radius:5px;padding:1px 6px;color:var(--text)}
 
@@ -369,6 +396,7 @@ input,select,textarea{font-family:inherit;font-size:13px}
       <button class="hbtn" id="btnTemplates"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span class="lbl">Plantillas</span></button>
       <button class="hbtn primary" id="btnMissions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/></svg><span class="lbl">Misiones</span></button>
       <button class="hbtn" id="btnProjects"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="lbl">Proyectos</span></button>
+      <button class="hbtn" id="btnDict"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-2z"/><path d="M9 3v18M13 8h3M13 12h3"/></svg><span class="lbl">Diccionario</span></button>
       <button class="hbtn" id="btnExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 10l5 5 5-5M5 21h14"/></svg><span class="lbl">Exportar</span></button>
       <button class="hbtn" id="btnHelp" title="Ayuda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
     </div>
@@ -484,7 +512,18 @@ input,select,textarea{font-family:inherit;font-size:13px}
       </ul></div>
       <div class="help-sec"><h3>5 · Firewall con reglas</h3><p>Selecciona un <b>firewall</b> y pulsa <b>Editar reglas</b>. Cada regla tiene acción (permitir/denegar), protocolo, origen y destino (por <b>IP</b>, <b>subred</b> o <b>zona</b>) y puerto. Se evalúan de arriba a abajo y gana la primera que coincide; si ninguna coincide, se aplica la <b>política por defecto</b>. Asigna <b>zonas</b> (LAN/DMZ/WAN) a los dispositivos para escribir reglas potentes, y usa el <b>probador</b> para ver el veredicto al instante. Los servicios (HTTPS, SSH, DNS…) definen el puerto del tráfico en pings y simulación.</p></div>
       <div class="help-sec"><h3>6 · Aprende con misiones</h3><p>En <b>Misiones</b> elige un reto (colegio, universidad, banco, «Asegura la DMZ»…). Los objetivos se validan en vivo mientras construyes y configuras.</p></div>
+      <div class="help-sec"><h3>📖 Diccionario</h3><p>¿No sabes qué hace un dispositivo? Abre el <b>Diccionario</b> en la barra superior, pulsa la <b>i</b> de cada icono de la paleta, o el <b>ⓘ</b> del inspector: te dice qué es, en qué capa trabaja y las diferencias clave (por ejemplo, switch capa 2 vs capa 3, IDS vs IPS, firewall vs WAF).</p></div>
       <div class="help-sec"><h3>Sincronización</h3><p>Todo se guarda automáticamente en este dispositivo y funciona sin conexión. Usa <b>Exportar → JSON</b> para llevar un proyecto a otro dispositivo e <b>Importar</b> allí.</p></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalDict">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-head"><div><h2>📖 Diccionario de dispositivos</h2><div class="sub">Qué es cada elemento, en qué capa trabaja y para qué sirve</div></div><button class="modal-x" data-close-modal>✕</button></div>
+    <div class="modal-body">
+      <input id="dictSearch" placeholder="Buscar… (p. ej. switch, firewall, DNS, capa 3)" autocomplete="off" style="width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;color:var(--text);margin-bottom:12px">
+      <div id="dictList"></div>
     </div>
   </div>
 </div>
@@ -517,23 +556,128 @@ const GLYPHS = {
   phone:'<rect class="glyph" x="7" y="3" width="10" height="18" rx="2.5"/><path class="glyph" d="M11 18h2"/>',
   tv:'<rect class="glyph" x="3" y="4" width="18" height="12" rx="1.5"/><path class="glyph" d="M9 20h6M12 16v4"/>',
   printer:'<path class="glyph" d="M7 8V4h10v4"/><rect class="glyph" x="4" y="8" width="16" height="8" rx="1.5"/><path class="glyph" d="M7 14h10v6H7z"/><path class="glyph" d="M17 11h.01"/>',
-  nas:'<rect class="glyph" x="5" y="3" width="14" height="18" rx="1.5"/><path class="glyph" d="M9 7h6M9 11h6M9 15h.01"/>'
+  nas:'<rect class="glyph" x="5" y="3" width="14" height="18" rx="1.5"/><path class="glyph" d="M9 7h6M9 11h6M9 15h.01"/>',
+  modem:'<rect class="glyph" x="3" y="9" width="18" height="10" rx="1.5"/><path class="glyph" d="M7 14h.01"/><path class="glyph" d="M11 14h6"/><path class="glyph" d="M9 6.5c1.8-1.6 4.2-1.6 6 0"/>',
+  ont:'<rect class="glyph" x="3" y="10" width="18" height="9" rx="1.5"/><path class="glyph" d="M6 14.5h.01M14 14.5h4"/><circle class="glyph" cx="12" cy="5" r="1.3"/><path class="glyph" d="M12 6v4"/>',
+  router5g:'<rect class="glyph" x="3" y="13" width="18" height="7" rx="1.5"/><path class="glyph" d="M7 16.5h.01"/><path class="glyph" d="M9 9.5a5 5 0 0 1 6 0M11 11.5a2.5 2.5 0 0 1 2 0"/>',
+  repeater:'<circle class="glyph" cx="8" cy="12" r="2.4"/><circle class="glyph" cx="16" cy="12" r="2.4"/><path class="glyph" d="M4.5 8c-1.2 2.5-1.2 5.5 0 8M19.5 8c1.2 2.5 1.2 5.5 0 8"/>',
+  l3switch:'<rect class="glyph" x="3" y="9" width="18" height="7" rx="1.5"/><path class="glyph" d="M6 12.5h12"/><path class="glyph" d="M9 6l3-3 3 3M9 19l3 3 3-3"/>',
+  wlc:'<rect class="glyph" x="3" y="12" width="18" height="8" rx="1.5"/><path class="glyph" d="M7 16h.01M10 16h7"/><path class="glyph" d="M8 8.5a6 6 0 0 1 8 0M10.5 10.5a2.5 2.5 0 0 1 3 0"/>',
+  loadbalancer:'<circle class="glyph" cx="5" cy="12" r="2"/><circle class="glyph" cx="19" cy="6" r="2"/><circle class="glyph" cx="19" cy="18" r="2"/><path class="glyph" d="M7 12h4l6-5.5M11 12l6 5.5"/>',
+  ids:'<path class="glyph" d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle class="glyph" cx="12" cy="12" r="2.3"/>',
+  ips:'<path class="glyph" d="M12 3l7 3v5c0 4.2-3 7.4-7 8.5C8 18.4 5 15.2 5 11V6z"/><path class="glyph" d="M9 12l2.2 2.2L15 10"/>',
+  waf:'<path class="glyph" d="M12 3l7 3v5c0 4.2-3 7.4-7 8.5C8 18.4 5 15.2 5 11V6z"/><circle class="glyph" cx="12" cy="10.5" r="3"/><path class="glyph" d="M9 10.5h6M12 7.5v6"/>',
+  vpn:'<rect class="glyph" x="6" y="11" width="12" height="8" rx="1.5"/><path class="glyph" d="M9 11V8a3 3 0 0 1 6 0v3"/><path class="glyph" d="M12 14v2"/>',
+  proxy:'<rect class="glyph" x="8" y="7" width="8" height="10" rx="1.5"/><path class="glyph" d="M2 12h6M16 12h6M5 9l-3 3 3 3M19 9l3 3-3 3"/>',
+  bastion:'<path class="glyph" d="M6 21V8l3-2 3 2 3-2 3 2v13"/><path class="glyph" d="M5 21h14M10 21v-4h4v4M9 11h.01M15 11h.01"/>',
+  honeypot:'<path class="glyph" d="M6 9h12l-1.4 9.2A2 2 0 0 1 14.6 20H9.4a2 2 0 0 1-2-1.8z"/><path class="glyph" d="M5 9h14M9 6h6"/>',
+  dns:'<circle class="glyph" cx="12" cy="12" r="8"/><path class="glyph" d="M4 12h16M12 4c2.5 2.6 2.5 13.4 0 16M12 4c-2.5 2.6-2.5 13.4 0 16"/>',
+  dhcp:'<rect class="glyph" x="5" y="3" width="14" height="18" rx="2"/><path class="glyph" d="M9 8h6M9 12h6M9 16h3"/>',
+  dc:'<path class="glyph" d="M4 8l8-4 8 4"/><rect class="glyph" x="5" y="8" width="14" height="12" rx="1"/><path class="glyph" d="M9 20v-4h6v4M9 11h.01M12 11h.01M15 11h.01"/>',
+  siem:'<rect class="glyph" x="3" y="4" width="18" height="16" rx="1.5"/><path class="glyph" d="M7 15l3-4 3 3 4-6"/>',
+  radius:'<circle class="glyph" cx="9" cy="9" r="4"/><path class="glyph" d="M11.5 11.5L19 19M16 16l2-2M18 18l2-2"/>',
+  monitor:'<path class="glyph" d="M4 16a8 8 0 0 1 16 0"/><path class="glyph" d="M12 16l4-3"/><path class="glyph" d="M4 19h16"/>',
+  backup:'<ellipse class="glyph" cx="12" cy="6" rx="7" ry="3"/><path class="glyph" d="M5 6v12c0 1.6 3.1 3 7 3s7-1.4 7-3V6"/><path class="glyph" d="M5 12c0 1.6 3.1 3 7 3s7-1.4 7-3"/>',
+  tablet:'<rect class="glyph" x="3" y="5" width="18" height="14" rx="2"/><path class="glyph" d="M18 12h.01"/>',
+  voip:'<rect class="glyph" x="4" y="4" width="16" height="7" rx="1"/><path class="glyph" d="M6 11l-2 8h16l-2-8"/><path class="glyph" d="M9.5 15h5"/>',
+  camera:'<rect class="glyph" x="3" y="7" width="12" height="6" rx="1.5"/><circle class="glyph" cx="9" cy="10" r="1.4"/><path class="glyph" d="M15 8.2l5-1.2v6l-5-1.2"/><path class="glyph" d="M7 13v3H5"/>',
+  iot:'<rect class="glyph" x="7" y="7" width="10" height="10" rx="1.5"/><path class="glyph" d="M10 4v3M14 4v3M10 17v3M14 17v3M4 10h3M4 14h3M17 10h3M17 14h3"/>',
+  plc:'<rect class="glyph" x="4" y="4" width="16" height="16" rx="1.5"/><path class="glyph" d="M8 4v16"/><path class="glyph" d="M12 8h5M12 12h5M12 16h5"/>',
+  pos:'<rect class="glyph" x="5" y="3" width="14" height="11" rx="1.5"/><path class="glyph" d="M8 7h8"/><path class="glyph" d="M7 17h10l1 4H6z"/>'
 };
 const TYPES = {
-  internet:{label:'Internet / ISP',cat:'WAN',color:'#38bdf8',role:'WAN (proveedor)',host:false,wan:true,forwards:true},
-  router:  {label:'Router',cat:'Núcleo',color:'#22d3ee',role:'Enrutador L3',host:false,forwards:true,routes:true},
-  firewall:{label:'Firewall',cat:'Seguridad',color:'#f43f5e',role:'Cortafuegos',host:false,forwards:true,fw:true},
-  switch:  {label:'Switch',cat:'Núcleo',color:'#a78bfa',role:'Conmutador L2',host:false,forwards:true},
-  ap:      {label:'Access Point',cat:'Núcleo',color:'#34d399',role:'Punto de acceso wifi',host:false,forwards:true,ap:true},
-  server:  {label:'Servidor',cat:'Endpoints',color:'#fbbf24',role:'Servidor',host:true},
-  nas:     {label:'NAS / Almacén',cat:'Endpoints',color:'#f59e0b',role:'Almacenamiento',host:true},
-  pc:      {label:'PC',cat:'Endpoints',color:'#e2e8f0',role:'Equipo de escritorio',host:true},
-  laptop:  {label:'Portátil',cat:'Endpoints',color:'#cbd5e1',role:'Portátil',host:true,wireless:true},
-  phone:   {label:'Teléfono',cat:'Endpoints',color:'#f0abfc',role:'Móvil',host:true,wireless:true},
-  tv:      {label:'Smart TV',cat:'Endpoints',color:'#93c5fd',role:'TV inteligente',host:true},
-  printer: {label:'Impresora',cat:'Endpoints',color:'#fda4af',role:'Impresora de red',host:true},
+  // ── WAN ──
+  internet:{label:'Internet / ISP',cat:'WAN',color:'#38bdf8',role:'WAN (proveedor)',host:false,wan:true,forwards:true,desc:'La nube pública: tu salida a internet.'},
+  // ── Conectividad ──
+  modem:   {label:'Módem',cat:'Conectividad',color:'#60a5fa',role:'Módem de acceso',host:false,forwards:true,desc:'Traduce la señal del proveedor (cable/DSL) a Ethernet.'},
+  ont:     {label:'ONT / Fibra',cat:'Conectividad',color:'#22d3ee',role:'Terminal de fibra',host:false,forwards:true,desc:'Convierte la fibra óptica en red del hogar.'},
+  router5g:{label:'Router 4G/5G',cat:'Conectividad',color:'#38bdf8',role:'Acceso móvil',host:false,forwards:true,routes:true,desc:'Da internet por red móvil (SIM), sin cable.'},
+  repeater:{label:'Repetidor / Mesh',cat:'Conectividad',color:'#34d399',role:'Extensor de red',host:false,forwards:true,desc:'Amplía la cobertura wifi repitiendo la señal.'},
+  // ── Núcleo ──
+  router:  {label:'Router',cat:'Núcleo',color:'#22d3ee',role:'Enrutador L3',host:false,forwards:true,routes:true,desc:'Conecta redes distintas y decide la ruta (capa 3).'},
+  l3switch:{label:'Switch L3',cat:'Núcleo',color:'#818cf8',role:'Switch multicapa',host:false,forwards:true,routes:true,desc:'Switch que además enruta entre VLANs (capa 2+3).'},
+  switch:  {label:'Switch L2',cat:'Núcleo',color:'#a78bfa',role:'Conmutador L2',host:false,forwards:true,desc:'Conecta equipos de la misma LAN por MAC (capa 2).'},
+  ap:      {label:'Access Point',cat:'Núcleo',color:'#34d399',role:'Punto de acceso wifi',host:false,forwards:true,ap:true,desc:'Da acceso inalámbrico (wifi) a la red cableada.'},
+  wlc:     {label:'Controlador WiFi',cat:'Núcleo',color:'#2dd4bf',role:'WLAN Controller',host:false,forwards:true,desc:'Gestiona muchos APs de forma centralizada.'},
+  loadbalancer:{label:'Balanceador',cat:'Núcleo',color:'#f472b6',role:'Load balancer',host:false,forwards:true,desc:'Reparte el tráfico entre varios servidores.'},
+  // ── Seguridad ──
+  firewall:{label:'Firewall',cat:'Seguridad',color:'#f43f5e',role:'Cortafuegos',host:false,forwards:true,fw:true,desc:'Permite o deniega tráfico según reglas.'},
+  ids:     {label:'IDS',cat:'Seguridad',color:'#fb7185',role:'Detección de intrusos',host:true,desc:'Detecta y alerta de tráfico sospechoso (pasivo).'},
+  ips:     {label:'IPS',cat:'Seguridad',color:'#f43f5e',role:'Prevención de intrusos',host:false,forwards:true,desc:'Detecta y además bloquea ataques (en línea).'},
+  waf:     {label:'WAF',cat:'Seguridad',color:'#fb923c',role:'Firewall de aplicaciones web',host:false,forwards:true,desc:'Protege apps web (SQLi, XSS) en capa 7.'},
+  vpn:     {label:'VPN Gateway',cat:'Seguridad',color:'#a78bfa',role:'Túnel cifrado',host:false,forwards:true,desc:'Crea túneles cifrados entre redes o usuarios.'},
+  proxy:   {label:'Proxy',cat:'Seguridad',color:'#f59e0b',role:'Proxy / caché',host:false,forwards:true,desc:'Intermedia el tráfico web (filtra y cachea).'},
+  bastion: {label:'Bastión',cat:'Seguridad',color:'#f87171',role:'Jump host',host:true,desc:'Punto único y vigilado para administrar la red.'},
+  honeypot:{label:'Honeypot',cat:'Seguridad',color:'#fbbf24',role:'Señuelo',host:true,desc:'Trampa que atrae atacantes para estudiarlos.'},
+  // ── Servidores y servicios ──
+  server:  {label:'Servidor',cat:'Servidores',color:'#fbbf24',role:'Servidor',host:true,desc:'Ofrece servicios (web, correo, apps…).'},
+  dns:     {label:'Servidor DNS',cat:'Servidores',color:'#38bdf8',role:'Resolución de nombres',host:true,desc:'Traduce nombres (web.com) a direcciones IP.'},
+  dhcp:    {label:'Servidor DHCP',cat:'Servidores',color:'#34d399',role:'Asignación de IP',host:true,desc:'Reparte direcciones IP automáticamente.'},
+  dc:      {label:'Dominio / AD',cat:'Servidores',color:'#a78bfa',role:'Controlador de dominio',host:true,desc:'Gestiona usuarios, equipos y permisos.'},
+  siem:    {label:'SIEM',cat:'Servidores',color:'#f472b6',role:'Gestión de eventos',host:true,desc:'Centraliza logs y alertas de seguridad.'},
+  radius:  {label:'RADIUS / AAA',cat:'Servidores',color:'#f59e0b',role:'Autenticación',host:true,desc:'Autentica el acceso a la red (usuario/contraseña).'},
+  monitor: {label:'Monitorización',cat:'Servidores',color:'#2dd4bf',role:'Supervisión',host:true,desc:'Vigila el estado y rendimiento de la red.'},
+  backup:  {label:'Backup',cat:'Servidores',color:'#94a3b8',role:'Copias de seguridad',host:true,desc:'Guarda copias para recuperación ante desastres.'},
+  nas:     {label:'NAS / Almacén',cat:'Servidores',color:'#f59e0b',role:'Almacenamiento',host:true,desc:'Almacenamiento de archivos en red.'},
+  // ── Endpoints ──
+  pc:      {label:'PC',cat:'Endpoints',color:'#e2e8f0',role:'Equipo de escritorio',host:true,desc:'Ordenador de usuario final.'},
+  laptop:  {label:'Portátil',cat:'Endpoints',color:'#cbd5e1',role:'Portátil',host:true,wireless:true,desc:'Equipo portátil, normalmente por wifi.'},
+  phone:   {label:'Teléfono',cat:'Endpoints',color:'#f0abfc',role:'Móvil',host:true,wireless:true,desc:'Smartphone conectado por wifi.'},
+  tablet:  {label:'Tablet',cat:'Endpoints',color:'#c4b5fd',role:'Tableta',host:true,wireless:true,desc:'Tableta táctil por wifi.'},
+  tv:      {label:'Smart TV',cat:'Endpoints',color:'#93c5fd',role:'TV inteligente',host:true,desc:'Televisor conectado (streaming).'},
+  printer: {label:'Impresora',cat:'Endpoints',color:'#fda4af',role:'Impresora de red',host:true,desc:'Impresora compartida en la red.'},
+  voip:    {label:'Teléfono IP',cat:'Endpoints',color:'#7dd3fc',role:'VoIP',host:true,desc:'Teléfono que llama por la red (VoIP).'},
+  // ── IoT / OT ──
+  camera:  {label:'Cámara IP',cat:'IoT / OT',color:'#38bdf8',role:'Videovigilancia',host:true,desc:'Cámara de seguridad conectada a la red.'},
+  iot:     {label:'Sensor IoT',cat:'IoT / OT',color:'#34d399',role:'Dispositivo IoT',host:true,wireless:true,desc:'Sensor inteligente (temperatura, presencia…).'},
+  plc:     {label:'PLC / SCADA',cat:'IoT / OT',color:'#fb923c',role:'Control industrial',host:true,desc:'Controla maquinaria industrial (redes OT).'},
+  pos:     {label:'TPV / POS',cat:'IoT / OT',color:'#f0abfc',role:'Punto de venta',host:true,desc:'Terminal de cobro en comercios.'},
 };
-const CATS=['WAN','Seguridad','Núcleo','Endpoints'];
+const CATS=['WAN','Conectividad','Núcleo','Seguridad','Servidores','Endpoints','IoT / OT'];
+const CAT_COLORS={'WAN':'#38bdf8','Conectividad':'#22d3ee','Núcleo':'#a78bfa','Seguridad':'#f43f5e','Servidores':'#fbbf24','Endpoints':'#e2e8f0','IoT / OT':'#34d399'};
+
+/* ---------- Device dictionary / encyclopedia ---------- */
+const DICT={
+  internet:{layer:'WAN / Internet',what:'Representa la red pública mundial y a tu proveedor (ISP). Es el origen y destino del tráfico externo.',use:'Punto de partida de casi toda red: todo lo que salga «fuera» pasa por aquí.'},
+  modem:{layer:'Capa 1–2',what:'Modula/demodula la señal del proveedor (cable coaxial, DSL, fibra HFC) para convertirla en Ethernet.',use:'Es la primera caja tras la toma del ISP en casa o en la oficina.',compare:'A diferencia del router, NO reparte IPs ni enruta: solo traduce la señal. Muchos equipos domésticos son módem+router en uno.'},
+  ont:{layer:'Capa 1 (fibra)',what:'Optical Network Terminal: termina la fibra óptica (FTTH) y la entrega como Ethernet.',use:'El equipo que instala la compañía de fibra en la pared.',compare:'Es el «módem» del mundo de la fibra.'},
+  router5g:{layer:'Capa 3 (móvil)',what:'Router que obtiene internet por red móvil (SIM 4G/5G) en lugar de cable.',use:'Conectividad donde no llega el cable, respaldo (failover) o movilidad.',compare:'Funciona como un router normal, pero su WAN es la red celular.'},
+  repeater:{layer:'Capa 1–2',what:'Repite/extiende la señal wifi para ampliar la cobertura; en modo mesh forma una malla con varios nodos.',use:'Eliminar zonas sin wifi en casas o edificios grandes.',compare:'No crea una red nueva como el AP: extiende la existente.'},
+  router:{layer:'Capa 3 (red)',what:'Conecta redes IP diferentes y elige por dónde enviar cada paquete usando su tabla de rutas. Suele hacer NAT y DHCP.',use:'Unir tu LAN con internet o interconectar sedes/subredes.',compare:'El router une redes DISTINTAS (capa 3); el switch conecta equipos DENTRO de una red (capa 2).'},
+  l3switch:{layer:'Capa 2 + 3',what:'Switch multicapa: conmuta por MAC como un switch y además enruta entre VLANs/subredes a gran velocidad por hardware.',use:'Núcleo de redes empresariales para mover tráfico entre muchas VLANs sin saturar el router.',compare:'Switch L2 = solo conmuta dentro de una VLAN. Switch L3 = conmuta Y enruta entre VLANs. Frente a un router: el L3 switch es más rápido en la LAN pero tiene menos funciones WAN (NAT, VPN, etc.).'},
+  switch:{layer:'Capa 2 (enlace)',what:'Conecta varios equipos de la MISMA red local y reenvía las tramas solo al puerto del destino, aprendiendo las direcciones MAC.',use:'Es la base de cualquier LAN: a él se enchufan PCs, servidores, impresoras…',compare:'Frente al hub (que repetía a todos los puertos), el switch envía solo a quien corresponde. No enruta entre redes: para eso está el router o el switch L3.'},
+  ap:{layer:'Capa 2 (wifi)',what:'Access Point: puente entre la red cableada y los dispositivos inalámbricos; emite una o varias SSID.',use:'Dar wifi a móviles, portátiles y tablets.',compare:'No es un router: normalmente cuelga de un switch/router y solo aporta el acceso radio.'},
+  wlc:{layer:'Gestión (capa 2)',what:'Wireless LAN Controller: administra de forma central decenas o cientos de APs (canales, SSID, roaming, seguridad).',use:'Redes wifi grandes (campus, hoteles, empresas).',compare:'Sin WLC cada AP se configura a mano; con WLC se gestionan todos juntos.'},
+  loadbalancer:{layer:'Capa 4–7',what:'Reparte las peticiones entre varios servidores para repartir carga y dar alta disponibilidad; detecta servidores caídos.',use:'Sitios web y apps con mucho tráfico que necesitan escalar y no caerse.',compare:'Un proxy inverso simple redirige; el balanceador además decide el mejor servidor y vigila su salud.'},
+  firewall:{layer:'Capa 3–4 (y 7)',what:'Filtra el tráfico según reglas (origen, destino, protocolo, puerto) y una política por defecto. Puede hacer NAT y ser stateful.',use:'Separar zonas de confianza (LAN/DMZ/WAN) y controlar qué entra y qué sale.',compare:'El firewall mira direcciones y puertos; el WAF entiende el contenido web (capa 7). IDS/IPS buscan patrones de ataque.'},
+  ids:{layer:'Capa 3–7 (pasivo)',what:'Intrusion Detection System: observa una copia del tráfico y ALERTA cuando ve patrones de ataque. No lo bloquea.',use:'Visibilidad y detección temprana; alimenta al SIEM.',compare:'IDS = detecta y avisa (pasivo, fuera de la ruta). IPS = detecta y BLOQUEA (en línea, dentro de la ruta).'},
+  ips:{layer:'Capa 3–7 (en línea)',what:'Intrusion Prevention System: se sitúa en el camino del tráfico y BLOQUEA en tiempo real lo que detecta como ataque.',use:'Frenar exploits y malware antes de que lleguen.',compare:'Como un IDS pero activo: si falla o se satura puede cortar tráfico legítimo, por eso se ajusta con cuidado.'},
+  waf:{layer:'Capa 7 (web)',what:'Web Application Firewall: inspecciona peticiones HTTP/HTTPS y bloquea ataques a aplicaciones (SQLi, XSS, etc.).',use:'Proteger webs y APIs públicas.',compare:'El firewall clásico no entiende el contenido web; el WAF sí, pero solo protege HTTP/S.'},
+  vpn:{layer:'Capa 3 (túnel)',what:'Crea túneles cifrados sobre internet para unir sedes (site-to-site) o dar acceso remoto seguro a usuarios.',use:'Teletrabajo y conectar oficinas como si fueran una sola red.',compare:'El proxy oculta/filtra tráfico web; la VPN cifra TODO el tráfico y te «mete» en la red remota.'},
+  proxy:{layer:'Capa 7',what:'Intermediario del tráfico (normalmente web): filtra contenido, cachea y oculta a los clientes internos.',use:'Control de navegación y ahorro de ancho de banda; en modo inverso, publica servicios.',compare:'Proxy directo = protege a los usuarios que salen; proxy inverso = protege a los servidores que publican.'},
+  bastion:{layer:'Host (acceso)',what:'Jump host: único equipo, muy vigilado, desde el que se administra el resto (SSH/RDP). Reduce la superficie de ataque.',use:'Acceso controlado a servidores críticos.',compare:'En vez de exponer cada servidor, se expone solo el bastión.'},
+  honeypot:{layer:'Host (señuelo)',what:'Sistema trampa que simula ser vulnerable para atraer atacantes, detectarlos y estudiar sus técnicas.',use:'Alerta temprana e inteligencia de amenazas.',compare:'No da servicio real: cualquier acceso a él es sospechoso por definición.'},
+  server:{layer:'Host / Capa 7',what:'Equipo que ofrece servicios a otros (web, correo, base de datos, aplicaciones).',use:'El «músculo» que responde a las peticiones de los clientes.',compare:'Cliente pide, servidor responde. Muchos roles (DNS, DHCP…) son servidores especializados.'},
+  dns:{layer:'Servicio (host)',what:'Traduce nombres legibles (ejemplo.com) a direcciones IP. Es la «agenda de contactos» de internet.',use:'Sin DNS tendrías que memorizar IPs; casi todo empieza con una consulta DNS.',compare:'DNS resuelve nombres; DHCP reparte IPs. A menudo van juntos.'},
+  dhcp:{layer:'Servicio (host)',what:'Asigna automáticamente IP, máscara, puerta de enlace y DNS a los equipos cuando se conectan.',use:'Evita configurar la IP a mano en cada dispositivo.',compare:'DHCP da la dirección; DNS traduce nombres. El router doméstico suele hacer ambos.'},
+  dc:{layer:'Servicio (host)',what:'Controlador de dominio (p. ej. Active Directory): centraliza usuarios, equipos, contraseñas y permisos.',use:'Iniciar sesión con la misma cuenta en toda la organización y aplicar políticas.',compare:'RADIUS autentica el acceso a la RED; el dominio gestiona identidades y permisos de los sistemas.'},
+  siem:{layer:'Servicio (host)',what:'Security Information and Event Management: recopila logs de toda la red y correlaciona eventos para detectar incidentes.',use:'Centro de operaciones de seguridad (SOC): ver todo en un sitio.',compare:'El IDS/IPS detectan en el tráfico; el SIEM junta y correlaciona lo que reportan todos.'},
+  radius:{layer:'Servicio (host)',what:'Servidor AAA (autenticación, autorización, contabilidad): valida quién puede entrar a la red (wifi 802.1X, VPN…).',use:'Acceso con usuario/contraseña o certificado en vez de una clave compartida.',compare:'RADIUS controla el acceso a la red; el dominio/AD gestiona identidades dentro de los sistemas.'},
+  monitor:{layer:'Servicio (host)',what:'Supervisa el estado, la disponibilidad y el rendimiento de dispositivos y enlaces, y avisa si algo falla.',use:'Enterarte de una caída antes que los usuarios.',compare:'La monitorización vigila «¿funciona y cómo va?»; el SIEM vigila «¿hay un ataque?».'},
+  backup:{layer:'Servicio (host)',what:'Realiza y guarda copias de seguridad para recuperar datos ante fallos, borrados o ransomware.',use:'Plan de recuperación ante desastres (regla 3-2-1).',compare:'El NAS almacena tus datos activos; el backup guarda COPIAS para restaurar.'},
+  nas:{layer:'Host / almacenamiento',what:'Network Attached Storage: almacenamiento de archivos compartido por la red.',use:'Carpeta común, copias, multimedia.',compare:'NAS = archivos por red; un servidor de BD guarda datos estructurados para apps.'},
+  pc:{layer:'Host (final)',what:'Ordenador de escritorio de un usuario. Es un cliente típico de la red.',use:'Puesto de trabajo cableado.'},
+  laptop:{layer:'Host (final)',what:'Ordenador portátil, normalmente conectado por wifi.',use:'Trabajo con movilidad.'},
+  phone:{layer:'Host (final)',what:'Smartphone conectado por wifi (y datos móviles).',use:'Cliente inalámbrico habitual.'},
+  tablet:{layer:'Host (final)',what:'Tableta táctil, cliente inalámbrico.',use:'Consumo de contenido y apps.'},
+  tv:{layer:'Host (final)',what:'Televisor inteligente conectado a la red para streaming.',use:'Ocio; suele consumir bastante ancho de banda.'},
+  printer:{layer:'Host (final)',what:'Impresora/escáner compartida en la red.',use:'Imprimir desde cualquier equipo de la LAN.'},
+  voip:{layer:'Host (capa 7)',what:'Teléfono IP: realiza llamadas por la red de datos (VoIP) en lugar de la línea telefónica clásica.',use:'Telefonía de empresa; sensible a la latencia (por eso importa el QoS).'},
+  camera:{layer:'Host (final)',what:'Cámara IP de videovigilancia que envía vídeo por la red.',use:'Seguridad física; suele ir en su propia VLAN.'},
+  iot:{layer:'Host (final)',what:'Dispositivo IoT (sensor/actuador) que mide o controla algo y lo reporta por la red.',use:'Domótica, industria, smart building.',compare:'Suelen ser poco seguros: conviene aislarlos en una VLAN/zona propia.'},
+  plc:{layer:'Host (OT)',what:'Controlador Lógico Programable (PLC/SCADA): automatiza maquinaria en entornos industriales (redes OT).',use:'Fábricas, plantas y servicios críticos.',compare:'Las redes OT priorizan disponibilidad y se separan de la red IT (de oficina).'},
+  pos:{layer:'Host (final)',what:'Terminal de punto de venta (TPV): procesa cobros en comercios.',use:'Retail; maneja datos de pago, así que se segmenta y protege (PCI-DSS).'},
+};
 
 /* ---------- Traffic model (services) ---------- */
 const SERVICES=[
@@ -691,7 +835,7 @@ function updateUndo(){$('btnUndo').disabled=!undoStack.length;$('btnRedo').disab
 /* ---------- Device / link ops ---------- */
 function nextName(type){
   const base={internet:'ISP',router:'Router',firewall:'Firewall',switch:'Switch',ap:'AP',server:'Servidor',
-    nas:'NAS',pc:'PC',laptop:'Laptop',phone:'Móvil',tv:'TV',printer:'Impresora'}[type]||type;
+    nas:'NAS',pc:'PC',laptop:'Laptop',phone:'Móvil',tv:'TV',printer:'Impresora'}[type]||(TYPES[type]&&TYPES[type].label)||type;
   let n=1;const names=new Set(Object.values(project.devices).map(d=>d.name));
   while(names.has(base+'-'+n))n++;
   return base+'-'+n;
@@ -901,8 +1045,8 @@ function overviewHTML(){
   // per category bars
   let bars='';
   const catCount={};devs.forEach(d=>{const c=TYPES[d.type].cat;catCount[c]=(catCount[c]||0)+1;});
-  CATS.forEach(c=>{const n=catCount[c]||0;if(!n&&c==='WAN')return;const pct=devs.length?Math.round(n/devs.length*100):0;
-    const col={'WAN':'#38bdf8','Seguridad':'#f43f5e','Núcleo':'#a78bfa','Endpoints':'#fbbf24'}[c];
+  CATS.forEach(c=>{const n=catCount[c]||0;if(!n)return;const pct=devs.length?Math.round(n/devs.length*100):0;
+    const col=CAT_COLORS[c]||'#8195b9';
     bars+=`<div class="bar-item"><div class="bar-head"><span class="bn">${c}</span><span class="bc">${n}</span></div>
       <div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div></div>`;});
   return `
@@ -931,6 +1075,7 @@ function deviceInspectorHTML(d){
   <div class="insp-dev-head">
     <div class="insp-dev-icon" style="color:${t.color}"><svg viewBox="0 0 24 24">${GLYPHS[d.type]}</svg></div>
     <div class="insp-dev-meta"><div class="t">${esc(d.name)}</div><div class="s">${esc(t.role)}</div></div>
+    <button class="insp-dict" id="inspDict" title="¿Qué es? Abrir diccionario">ⓘ</button>
   </div>
   <div class="toggle-row"><span class="tl">Estado: <span style="color:${d.status==='up'?'var(--good)':'var(--bad)'}">${d.status==='up'?'Activo':'Caído'}</span></span>
     <div class="switch ${d.status==='up'?'on':''}" id="fStatus"></div></div>
@@ -976,6 +1121,7 @@ function bindDeviceInspector(d){
   on('fZone','change',()=>{beginChange();d.zone=$('fZone').value;commitChange();scheduleSave();refreshMissions();});
   on('fDefPol','click',()=>{beginChange();d.defaultPolicy=(d.defaultPolicy==='deny'?'allow':'deny');commitChange();afterMutate();refreshMissions();});
   on('fEditRules','click',()=>openRulesModal(d.id));
+  on('inspDict','click',()=>openDict(d.type));
   on('delDev','click',()=>{if(confirm('¿Eliminar '+d.name+'?'))deleteDevice(d.id);});
   on('pingBtn','click',()=>{const tg=$('pingTarget').value;if(!tg)return;runPing(d.id,tg,$('pingSvc')?$('pingSvc').value:'icmp');});
 }
@@ -1390,8 +1536,9 @@ function buildPalette(){
     const items=Object.entries(TYPES).filter(([k,v])=>v.cat===cat);
     if(!items.length)return;
     html+=`<div class="pal-cat">${cat.toUpperCase()}</div><div class="pal-grid">`;
-    items.forEach(([k,v])=>{html+=`<button class="pal-item" data-type="${k}" draggable="true" style="color:${v.color}">
-      <svg viewBox="0 0 24 24">${GLYPHS[k]}</svg><span class="pl">${v.label}</span></button>`;});
+    items.forEach(([k,v])=>{html+=`<button class="pal-item" data-type="${k}" draggable="true" style="color:${v.color}" title="${esc(v.desc||v.label)}">
+      <svg viewBox="0 0 24 24">${GLYPHS[k]}</svg><span class="pl">${v.label}</span>
+      <span class="pal-info" data-info="${k}" title="¿Qué es?">i</span></button>`;});
     html+='</div>';
   });
   html+=`<div class="pal-hint"><b>Toca</b> para añadir al centro, o <b>arrastra</b> al lienzo. Luego usa <b>Conectar</b> (🔗) para unir dispositivos.</div>`;
@@ -1401,6 +1548,8 @@ function buildPalette(){
     it.addEventListener('click',()=>{const c=stageCenterWorld();addDevice(type,c.x+(Math.random()*60-30),c.y+(Math.random()*60-30));
       if(window.matchMedia('(max-width:900px)').matches)closePanel('palette');});
     it.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/type',type);e.dataTransfer.effectAllowed='copy';});
+    const info=it.querySelector('.pal-info');
+    if(info)info.addEventListener('click',e=>{e.stopPropagation();openDict(type);});
   });
 }
 stage.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='copy';});
@@ -1593,6 +1742,41 @@ function bindRulesModal(){
     res.innerHTML=`<span style="color:${v.action==='deny'?'var(--bad)':'var(--good)'};font-weight:700">${v.action==='deny'?'✗ DENEGADO':'✓ PERMITIDO'}</span> · ${svc.label} · ${v.rule?('coincide regla #'+(v.idx+1)):'política por defecto'}${onPath?'':' · <span style="color:var(--warn)">(este firewall no está en la ruta)</span>'}`;
   });
 }
+/* ═══════════════ Device dictionary / encyclopedia ═══════════════ */
+let dictExpanded=null;
+function dictMatch(k,q){if(!q)return true;q=q.toLowerCase();const t=TYPES[k],d=DICT[k]||{};
+  return (t.label+' '+(t.desc||'')+' '+(t.role||'')+' '+(d.layer||'')+' '+(d.what||'')+' '+(d.use||'')+' '+(d.compare||'')+' '+k).toLowerCase().includes(q);}
+function renderDict(q){
+  const list=$('dictList');if(!list)return;let html='';
+  CATS.forEach(cat=>{
+    const items=Object.keys(TYPES).filter(k=>TYPES[k].cat===cat&&dictMatch(k,q));
+    if(!items.length)return;
+    html+=`<div class="pal-cat" style="margin-top:14px">${esc(cat.toUpperCase())}</div>`;
+    items.forEach(k=>{const t=TYPES[k],d=DICT[k]||{};
+      html+=`<div class="dict-card${dictExpanded===k?' open':''}" data-k="${k}">
+        <div class="dict-head">
+          <div class="dict-ic" style="color:${t.color}"><svg viewBox="0 0 24 24">${GLYPHS[k]}</svg></div>
+          <div class="dict-meta"><div class="dict-name">${esc(t.label)} <span class="dict-layer">${esc(d.layer||'')}</span></div>
+            <div class="dict-desc">${esc(t.desc||'')}</div></div>
+          <span class="dict-caret">▾</span>
+        </div>
+        <div class="dict-body">
+          ${d.what?`<p><b>Qué hace:</b> ${esc(d.what)}</p>`:''}
+          ${d.use?`<p><b>Para qué se usa:</b> ${esc(d.use)}</p>`:''}
+          ${d.compare?`<p class="dict-cmp"><b>💡 Diferencia clave:</b> ${esc(d.compare)}</p>`:''}
+        </div></div>`;});
+  });
+  list.innerHTML=html||'<div class="insp-empty">Sin resultados.</div>';
+  list.querySelectorAll('.dict-head').forEach(h=>h.addEventListener('click',()=>h.parentElement.classList.toggle('open')));
+}
+function openDict(typeKey){
+  dictExpanded=typeKey||null;
+  const s=$('dictSearch');if(s)s.value='';
+  renderDict('');
+  openModal('modalDict');
+  if(typeKey){const card=document.querySelector('.dict-card[data-k="'+typeKey+'"]');
+    if(card)setTimeout(()=>card.scrollIntoView({block:'center',behavior:'smooth'}),60);}
+}
 function diffClass(d){return{easy:'b-easy',med:'b-med',hard:'b-hard',exp:'b-exp'}[d];}
 function diffLabel(d){return{easy:'FÁCIL',med:'MEDIO',hard:'AVANZADO',exp:'EXPERTO'}[d];}
 
@@ -1624,6 +1808,8 @@ $('btnMissions').addEventListener('click',()=>{renderMissionsModal();openModal('
 $('btnProjects').addEventListener('click',()=>{renderProjectsModal();openModal('modalProjects');});
 $('btnExport').addEventListener('click',()=>openModal('modalExport'));
 $('btnHelp').addEventListener('click',()=>openModal('modalHelp'));
+$('btnDict').addEventListener('click',()=>openDict());
+$('dictSearch').addEventListener('input',e=>{dictExpanded=null;renderDict(e.target.value);});
 $('mbClose').addEventListener('click',stopMission);
 $('btnNewProject').addEventListener('click',()=>{setProject(newProject('Nueva red'));closeModal();toast('Proyecto nuevo creado','good');});
 $('expJson').addEventListener('click',exportJSON);
