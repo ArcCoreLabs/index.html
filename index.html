@@ -2,1181 +2,1421 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Python · Sec Tracker</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<meta name="description" content="NetForge — simulador visual de infraestructuras de red. Diseña, conecta y simula redes desde topologías domésticas hasta empresariales. Plantillas y misiones guiadas.">
+<title>NetForge · Simulador de Redes</title>
+<link rel="manifest" href='data:application/manifest+json,{"name":"NetForge — Simulador de Redes","short_name":"NetForge","start_url":".","display":"standalone","background_color":"#0b1220","theme_color":"#0b1220","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Crect width=%27100%27 height=%27100%27 rx=%2722%27 fill=%27%230b1220%27/%3E%3Cg fill=%27none%27 stroke=%27%2338bdf8%27 stroke-width=%276%27 stroke-linecap=%27round%27%3E%3Ccircle cx=%2750%27 cy=%2726%27 r=%279%27/%3E%3Ccircle cx=%2726%27 cy=%2772%27 r=%279%27/%3E%3Ccircle cx=%2774%27 cy=%2772%27 r=%279%27/%3E%3Cpath d=%27M50 35 L28 64 M50 35 L72 64%27/%3E%3C/g%3E%3C/svg%3E","sizes":"any","type":"image/svg+xml"}]}'>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg: #07090f;
-  --card: #0f1318;
-  --card2: #161c24;
-  --border: #1e2730;
-  --green: #00ff87;
-  --green2: #00c96a;
-  --green-glow: rgba(0,255,135,0.15);
-  --cyan: #00cfff;
-  --orange: #ff8c42;
-  --red: #ff4466;
-  --purple: #b06dff;
-  --yellow: #ffd166;
-  --text: #d4dde8;
-  --muted: #4a5a6a;
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-display: 'Syne', sans-serif;
+:root{
+  --bg:#0b1220; --bg2:#0e1526;
+  --panel:#111a2b; --panel2:#16223a; --panel3:#1b2942;
+  --border:#243350; --border2:#2f4266;
+  --text:#e6eefb; --muted:#8195b9; --muted2:#5f7196;
+  --accent:#38bdf8; --accent2:#22d3ee;
+  --good:#34d399; --warn:#fbbf24; --bad:#f43f5e; --purple:#a78bfa; --pink:#f0abfc;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --ui:'Inter',system-ui,-apple-system,sans-serif;
+  --shadow:0 10px 40px rgba(0,0,0,.5);
+  --hdr-h:52px; --tool-h:48px;
 }
-
-* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
-
-html, body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-display);
-  min-height: 100vh;
-  max-width: 480px;
-  margin: 0 auto;
-  overflow-x: hidden;
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--ui);
+  font-size:14px; -webkit-font-smoothing:antialiased; overscroll-behavior:none;
 }
+button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
+input,select,textarea{font-family:inherit;font-size:13px}
+.mono{font-family:var(--mono)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px}
+::-webkit-scrollbar-track{background:transparent}
 
-/* ─── NOISE TEXTURE ─── */
-body::before {
-  content:'';
-  position:fixed;
-  inset:0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-  pointer-events:none;
-  z-index:0;
-  opacity:.6;
+/* ─────────── APP SHELL ─────────── */
+#app{display:flex;flex-direction:column;height:100%;height:100dvh}
+
+/* Header */
+.header{
+  height:var(--hdr-h);flex-shrink:0;display:flex;align-items:center;gap:10px;
+  padding:0 12px;background:linear-gradient(180deg,var(--bg2),var(--bg));
+  border-bottom:1px solid var(--border);z-index:60;
 }
-
-.wrap { position:relative; z-index:1; padding: 0 0 100px; }
-
-/* ─── HEADER ─── */
-.header {
-  padding: 20px 20px 0;
-  position: sticky;
-  top: 0;
-  background: rgba(7,9,15,0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  z-index: 100;
-  border-bottom: 1px solid var(--border);
+.brand{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.brand-logo{width:30px;height:30px;flex-shrink:0}
+.brand-name{font-weight:800;font-size:16px;letter-spacing:-.3px;white-space:nowrap}
+.brand-name b{color:var(--accent)}
+.brand-tag{font-family:var(--mono);font-size:9px;color:var(--muted2);letter-spacing:1px;margin-top:-2px}
+.proj-name{
+  margin-left:6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;
+  padding:6px 10px;color:var(--text);font-weight:600;font-size:13px;max-width:180px;min-width:60px;
 }
-
-.header-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
+.proj-name:focus{outline:none;border-color:var(--accent)}
+.hdr-spacer{flex:1}
+.hdr-actions{display:flex;align-items:center;gap:6px;overflow-x:auto;scrollbar-width:none}
+.hdr-actions::-webkit-scrollbar{display:none}
+.hbtn{
+  display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:8px;
+  background:var(--panel);border:1px solid var(--border);color:var(--muted);
+  font-size:12px;font-weight:600;white-space:nowrap;transition:.15s;
 }
+.hbtn:hover{color:var(--text);border-color:var(--border2);background:var(--panel2)}
+.hbtn svg{width:15px;height:15px;flex-shrink:0}
+.hbtn.primary{background:rgba(56,189,248,.14);border-color:rgba(56,189,248,.4);color:var(--accent)}
+.hbtn:disabled{opacity:.35;cursor:not-allowed}
+.hbtn .lbl{display:inline}
 
-.logo {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--green);
-  letter-spacing: 3px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+/* Main region */
+.main{flex:1;position:relative;overflow:hidden;background:var(--bg)}
+
+/* Canvas */
+#stage{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block;cursor:grab;background:
+  radial-gradient(circle at 50% 40%, #0e1830 0%, #0b1220 70%);}
+#stage.mode-connect{cursor:crosshair}
+#stage.mode-delete{cursor:not-allowed}
+#stage.panning{cursor:grabbing}
+.grid-line{stroke:#16233d;stroke-width:1}
+.grid-line.major{stroke:#1c2c4a}
+
+/* Links */
+.link{stroke:var(--good);stroke-width:2.5;stroke-linecap:round;transition:stroke .2s}
+.link.wireless{stroke-dasharray:2 7}
+.link.down{stroke:var(--bad);stroke-dasharray:6 6;opacity:.7}
+.link.sel{stroke:var(--accent);stroke-width:4}
+.link-hit{stroke:transparent;stroke-width:18;cursor:pointer;fill:none}
+.link-badge{font-family:var(--mono);font-size:9px;fill:var(--muted);paint-order:stroke;
+  stroke:var(--bg);stroke-width:3px;text-anchor:middle}
+
+/* Nodes */
+.node{cursor:pointer}
+.node .body{fill:var(--panel2);stroke:var(--border2);stroke-width:1.5;transition:.15s}
+.node.sel .body{stroke:var(--accent);stroke-width:2.5}
+.node.pending .body{stroke:var(--accent2);stroke-width:2.5;stroke-dasharray:5 4}
+.node.down .body{opacity:.45}
+.node .icon{color:currentColor}
+.node .glyph{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.node .glyph.fill{fill:currentColor;stroke:none}
+.node .nlabel{font-family:var(--ui);font-weight:600;font-size:11px;fill:var(--text);text-anchor:middle;
+  paint-order:stroke;stroke:var(--bg);stroke-width:3px}
+.node .nip{font-family:var(--mono);font-size:8.5px;fill:var(--muted);text-anchor:middle;
+  paint-order:stroke;stroke:var(--bg);stroke-width:2.5px}
+.node .status{stroke:var(--bg);stroke-width:2}
+.status.up{fill:var(--good)} .status.down{fill:var(--bad)}
+.node.down .status.up{fill:var(--muted2)}
+
+/* packet */
+.packet{filter:drop-shadow(0 0 4px currentColor)}
+
+/* Floating toolbar */
+.toolbar{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:40;
+  display:flex;gap:4px;background:rgba(17,26,43,.92);backdrop-filter:blur(10px);
+  border:1px solid var(--border);border-radius:12px;padding:5px;box-shadow:var(--shadow);
 }
+.tbtn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:8px;
+  color:var(--muted);transition:.12s;position:relative}
+.tbtn svg{width:19px;height:19px}
+.tbtn:hover{background:var(--panel2);color:var(--text)}
+.tbtn.active{background:rgba(56,189,248,.16);color:var(--accent)}
+.tbtn.sim.active{background:rgba(52,211,153,.16);color:var(--good)}
+.tsep{width:1px;background:var(--border);margin:4px 2px}
 
-.logo-dot {
-  width: 7px; height: 7px;
-  background: var(--green);
-  border-radius: 50%;
-  box-shadow: 0 0 8px var(--green);
-  animation: pulse 2s infinite;
+/* left palette toggle + right inspector toggle (mobile) */
+.side-toggle{
+  position:absolute;z-index:41;top:60px;width:40px;height:40px;border-radius:10px;
+  background:rgba(17,26,43,.92);backdrop-filter:blur(10px);border:1px solid var(--border);
+  display:none;align-items:center;justify-content:center;color:var(--muted);box-shadow:var(--shadow)
 }
+.side-toggle svg{width:20px;height:20px}
+#toggle-palette{left:10px}
+#toggle-inspector{right:10px}
 
-@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(0.8)} }
+/* Panels */
+.panel{position:absolute;top:0;bottom:0;width:250px;background:var(--panel);z-index:50;
+  display:flex;flex-direction:column;transition:transform .25s}
+.panel-left{left:0;border-right:1px solid var(--border)}
+.panel-right{right:0;width:300px;border-left:1px solid var(--border)}
+.panel-head{padding:13px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;
+  justify-content:space-between;flex-shrink:0}
+.panel-title{font-size:11px;font-family:var(--mono);letter-spacing:1.5px;color:var(--muted);font-weight:700}
+.panel-body{flex:1;overflow-y:auto;padding:12px}
+.panel-close{display:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px}
 
-.streak-badge {
-  background: rgba(255,140,66,0.12);
-  border: 1px solid rgba(255,140,66,0.25);
-  color: var(--orange);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  padding: 5px 10px;
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
+/* Palette */
+.pal-cat{font-size:10px;font-family:var(--mono);letter-spacing:1px;color:var(--muted2);
+  margin:14px 0 8px;padding-left:2px;font-weight:700}
+.pal-cat:first-child{margin-top:0}
+.pal-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.pal-item{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 6px;border-radius:11px;
+  background:var(--panel2);border:1px solid var(--border);transition:.14s;text-align:center}
+.pal-item:hover{border-color:var(--border2);background:var(--panel3);transform:translateY(-1px)}
+.pal-item:active{transform:scale(.96)}
+.pal-item svg{width:26px;height:26px}
+.pal-item .pl{font-size:10px;font-weight:600;color:var(--muted);line-height:1.2}
+.pal-hint{margin-top:14px;font-size:11px;color:var(--muted2);line-height:1.5;padding:10px;
+  background:var(--panel2);border-radius:9px;border:1px solid var(--border)}
+.pal-hint b{color:var(--muted)}
+
+/* Inspector */
+.insp-empty{color:var(--muted2);text-align:center;padding:30px 10px;font-size:12px}
+.ov-card{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:11px}
+.ov-title{font-size:10px;font-family:var(--mono);letter-spacing:1px;color:var(--muted2);margin-bottom:10px;font-weight:700}
+.ov-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ov-stat{background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:9px 10px}
+.ov-stat .n{font-family:var(--mono);font-size:20px;font-weight:700;line-height:1}
+.ov-stat .l{font-size:9px;color:var(--muted2);font-family:var(--mono);letter-spacing:.5px;margin-top:3px}
+.bar-item{margin-bottom:9px}
+.bar-head{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px}
+.bar-head .bn{font-weight:600}
+.bar-head .bc{font-family:var(--mono);color:var(--muted)}
+.bar-bg{height:6px;background:var(--panel);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .5s}
+
+.insp-dev-head{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.insp-dev-icon{width:44px;height:44px;flex-shrink:0;border-radius:11px;background:var(--panel2);
+  border:1px solid var(--border);display:flex;align-items:center;justify-content:center}
+.insp-dev-icon svg{width:26px;height:26px}
+.insp-dev-meta .t{font-weight:700;font-size:15px}
+.insp-dev-meta .s{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.field{margin-bottom:11px}
+.field label{display:block;font-size:10px;font-family:var(--mono);letter-spacing:.5px;color:var(--muted2);
+  margin-bottom:5px;font-weight:600}
+.field input,.field select,.field textarea{width:100%;background:var(--panel2);border:1px solid var(--border);
+  border-radius:8px;padding:9px 10px;color:var(--text)}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+.field-row{display:flex;gap:8px}.field-row>*{flex:1}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;background:var(--panel2);
+  border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:11px}
+.toggle-row .tl{font-size:12px;font-weight:600}
+.switch{width:42px;height:24px;border-radius:13px;background:var(--border2);position:relative;transition:.2s;flex-shrink:0}
+.switch.on{background:var(--good)}
+.switch::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
+  background:#fff;transition:.2s}
+.switch.on::after{left:20px}
+.insp-actions{display:flex;gap:8px;margin-top:6px}
+.ibtn{flex:1;padding:10px;border-radius:9px;font-size:12px;font-weight:700;border:1px solid var(--border);
+  background:var(--panel2);color:var(--text);transition:.14s}
+.ibtn:hover{background:var(--panel3)}
+.ibtn.danger{border-color:rgba(244,63,94,.4);color:var(--bad)}
+.ibtn.danger:hover{background:rgba(244,63,94,.1)}
+.ibtn.go{border-color:rgba(56,189,248,.4);color:var(--accent);background:rgba(56,189,248,.1)}
+
+/* Ping console */
+.console{margin-top:12px;background:#08101f;border:1px solid var(--border);border-radius:9px;
+  padding:10px;font-family:var(--mono);font-size:11px;max-height:150px;overflow-y:auto;line-height:1.6}
+.console .ln{white-space:pre-wrap;word-break:break-word}
+.console .ok{color:var(--good)} .console .er{color:var(--bad)} .console .in{color:var(--muted)}
+.console .wr{color:var(--warn)}
+
+/* Live stats strip */
+.stats-strip{position:absolute;bottom:10px;left:10px;z-index:30;display:flex;gap:6px;flex-wrap:wrap;
+  max-width:calc(100% - 20px)}
+.chip{background:rgba(17,26,43,.9);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:9px;
+  padding:6px 10px;font-family:var(--mono);font-size:10px;display:flex;align-items:center;gap:6px}
+.chip .cv{font-weight:700;font-size:12px}
+.chip .cl{color:var(--muted2)}
+.chip .dot{width:7px;height:7px;border-radius:50%}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(5,9,18,.75);backdrop-filter:blur(4px);z-index:200;
+  display:none;align-items:center;justify-content:center;padding:16px}
+.modal-bg.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:640px;
+  max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow);overflow:hidden}
+.modal-head{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;
+  justify-content:space-between;flex-shrink:0}
+.modal-head h2{font-size:17px;font-weight:800}
+.modal-head .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.modal-x{width:32px;height:32px;border-radius:8px;background:var(--panel2);color:var(--muted);font-size:18px;
+  display:flex;align-items:center;justify-content:center}
+.modal-x:hover{color:var(--text)}
+.modal-body{padding:16px 18px;overflow-y:auto}
+
+/* Template / project cards */
+.card-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.tcard{background:var(--panel2);border:1px solid var(--border);border-radius:13px;padding:14px;transition:.15s;
+  text-align:left;position:relative;overflow:hidden}
+.tcard:hover{border-color:var(--accent);transform:translateY(-2px)}
+.tcard .ico{font-size:24px;margin-bottom:8px}
+.tcard .tt{font-weight:700;font-size:14px;margin-bottom:4px}
+.tcard .td{font-size:11px;color:var(--muted);line-height:1.4}
+.tcard .badge{position:absolute;top:11px;right:11px;font-size:9px;font-family:var(--mono);padding:3px 7px;
+  border-radius:20px;font-weight:700;letter-spacing:.5px}
+.b-easy{background:rgba(52,211,153,.15);color:var(--good)}
+.b-med{background:rgba(251,191,36,.15);color:var(--warn)}
+.b-hard{background:rgba(244,63,94,.15);color:var(--bad)}
+.b-exp{background:rgba(167,139,250,.15);color:var(--purple)}
+
+.proj-row{display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--border);
+  border-radius:11px;padding:12px 14px;margin-bottom:9px}
+.proj-row .pinfo{flex:1;min-width:0}
+.proj-row .pt{font-weight:700;font-size:14px}
+.proj-row .pm{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+.proj-row .pbtns{display:flex;gap:6px}
+.mini-btn{padding:7px 11px;border-radius:8px;background:var(--panel3);border:1px solid var(--border);
+  font-size:11px;font-weight:600;color:var(--muted)}
+.mini-btn:hover{color:var(--text)}
+.mini-btn.danger{color:var(--bad)}
+
+/* Missions */
+.mission-obj{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.mission-obj:last-child{border:none}
+.mo-check{width:22px;height:22px;border-radius:6px;border:2px solid var(--border2);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;margin-top:1px;transition:.2s}
+.mo-check.done{background:var(--good);border-color:var(--good);color:#04231a}
+.mo-txt{font-size:13px;line-height:1.4}
+.mo-txt.done{color:var(--muted);text-decoration:line-through}
+.mission-banner{position:absolute;top:58px;left:50%;transform:translateX(-50%);z-index:35;
+  background:rgba(17,26,43,.95);backdrop-filter:blur(10px);border:1px solid var(--accent);border-radius:12px;
+  padding:10px 14px;box-shadow:var(--shadow);max-width:calc(100% - 100px);display:none;align-items:center;gap:12px}
+.mission-banner.show{display:flex}
+.mb-info{min-width:0}
+.mb-t{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mb-p{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.mb-prog{width:70px;height:6px;background:var(--panel);border-radius:4px;overflow:hidden;flex-shrink:0}
+.mb-prog i{display:block;height:100%;background:var(--good);transition:.4s}
+.mb-x{color:var(--muted);font-size:16px;padding:0 4px}
+
+/* help */
+.help-sec{margin-bottom:16px}
+.help-sec h3{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:7px}
+.help-sec p,.help-sec li{font-size:13px;color:var(--muted);line-height:1.6}
+.help-sec ul{padding-left:18px}
+.kbd{font-family:var(--mono);font-size:11px;background:var(--panel3);border:1px solid var(--border);
+  border-radius:5px;padding:1px 6px;color:var(--text)}
+
+/* toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);z-index:300;
+  background:var(--panel3);border:1px solid var(--border2);border-radius:10px;padding:11px 18px;font-size:13px;
+  font-weight:600;box-shadow:var(--shadow);opacity:0;transition:.3s;pointer-events:none;max-width:90%}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.toast.good{border-color:var(--good);color:var(--good)}
+.toast.bad{border-color:var(--bad);color:var(--bad)}
+
+/* backdrop for mobile panels */
+.backdrop{position:absolute;inset:0;background:rgba(0,0,0,.4);z-index:45;display:none}
+.backdrop.show{display:block}
+
+/* Responsive */
+@media(max-width:900px){
+  .brand-tag{display:none}
+  .hbtn .lbl{display:none}
+  .hbtn{padding:8px}
+  .proj-name{max-width:110px}
+  .side-toggle{display:flex}
+  .panel-left,.panel-right{transform:translateX(-110%);box-shadow:var(--shadow)}
+  .panel-right{transform:translateX(110%)}
+  .panel.open{transform:translateX(0)}
+  .panel-close{display:block}
+  .card-grid{grid-template-columns:1fr}
 }
-
-.header-title {
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  line-height: 1;
-  margin-bottom: 16px;
-}
-
-.header-title span { color: var(--green); }
-
-/* ─── PROGRESS RING + STATS ─── */
-.stats-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding-bottom: 16px;
-}
-
-.ring-wrap {
-  position: relative;
-  width: 72px;
-  height: 72px;
-  flex-shrink: 0;
-}
-
-.ring-wrap svg { transform: rotate(-90deg); }
-
-.ring-bg { fill: none; stroke: var(--border); stroke-width: 5; }
-.ring-fill {
-  fill: none;
-  stroke: var(--green);
-  stroke-width: 5;
-  stroke-linecap: round;
-  stroke-dasharray: 188.5;
-  stroke-dashoffset: 188.5;
-  transition: stroke-dashoffset 0.8s cubic-bezier(.4,0,.2,1);
-  filter: drop-shadow(0 0 6px var(--green));
-}
-
-.ring-text {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.ring-pct {
-  font-family: var(--font-mono);
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--green);
-  line-height: 1;
-}
-
-.ring-label {
-  font-size: 8px;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  margin-top: 2px;
-}
-
-.mini-stats {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.mini-stat {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-
-.mini-stat-num {
-  font-family: var(--font-mono);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.mini-stat-label {
-  font-size: 9px;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  letter-spacing: 1px;
-  margin-top: 3px;
-}
-
-/* ─── FILTER TABS ─── */
-.filter-scroll {
-  overflow-x: auto;
-  scrollbar-width: none;
-  padding: 14px 20px 0;
-  display: flex;
-  gap: 8px;
-}
-
-.filter-scroll::-webkit-scrollbar { display: none; }
-
-.filter-btn {
-  flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 1px;
-  padding: 7px 14px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--muted);
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-
-.filter-btn.active {
-  background: var(--green-glow);
-  border-color: rgba(0,255,135,0.3);
-  color: var(--green);
-}
-
-/* ─── SECTION HEADERS ─── */
-.section-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 22px 20px 10px;
-}
-
-.section-dot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.section-name {
-  font-size: 11px;
-  font-family: var(--font-mono);
-  letter-spacing: 2px;
-  font-weight: 600;
-}
-
-.section-count {
-  font-size: 10px;
-  font-family: var(--font-mono);
-  color: var(--muted);
-  margin-left: auto;
-}
-
-/* ─── TOPIC CARDS ─── */
-.topics-list { padding: 0 16px; display: flex; flex-direction: column; gap: 6px; }
-
-.topic-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 14px 16px;
-  cursor: pointer;
-  transition: all 0.18s;
-  -webkit-user-select: none;
-  user-select: none;
-  position: relative;
-  overflow: hidden;
-}
-
-.topic-card::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 3px;
-  background: transparent;
-  transition: background 0.2s;
-  border-radius: 14px 0 0 14px;
-}
-
-.topic-card:active { transform: scale(0.98); }
-
-.topic-card.done {
-  background: rgba(0,255,135,0.04);
-  border-color: rgba(0,255,135,0.18);
-}
-
-.topic-card.done::before { background: var(--green); }
-
-.topic-num {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--muted);
-  min-width: 24px;
-  font-weight: 600;
-}
-
-.topic-card.done .topic-num { color: var(--green); }
-
-.topic-info { flex: 1; min-width: 0; }
-
-.topic-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-  line-height: 1.3;
-}
-
-.topic-card.done .topic-name {
-  color: var(--muted);
-  text-decoration: line-through;
-  text-decoration-color: rgba(0,255,135,0.4);
-}
-
-.topic-sub {
-  font-size: 11px;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  margin-top: 3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.check-circle {
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  border: 2px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s;
-  font-size: 13px;
-}
-
-.topic-card.done .check-circle {
-  background: var(--green);
-  border-color: var(--green);
-  box-shadow: 0 0 12px rgba(0,255,135,0.4);
-  color: #000;
-  font-weight: 900;
-}
-
-/* ─── BOTTOM NAV ─── */
-.bottom-nav {
-  position: fixed;
-  bottom: 0; left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 480px;
-  background: rgba(10,13,20,0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--border);
-  display: flex;
-  padding: 10px 0 max(10px, env(safe-area-inset-bottom));
-  z-index: 200;
-}
-
-.nav-btn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  padding: 6px 0;
-  transition: all 0.15s;
-  background: none;
-  border: none;
-}
-
-.nav-icon { font-size: 20px; line-height: 1; }
-.nav-label {
-  font-size: 9px;
-  font-family: var(--font-mono);
-  letter-spacing: 1px;
-  color: var(--muted);
-  transition: color 0.15s;
-}
-
-.nav-btn.active .nav-label { color: var(--green); }
-.nav-btn.active .nav-icon { filter: drop-shadow(0 0 4px var(--green)); }
-
-/* ─── VIEWS ─── */
-.view { display: none; }
-.view.active { display: block; }
-
-/* ─── DAILY VIEW ─── */
-.daily-header {
-  padding: 20px 20px 0;
-}
-
-.date-display {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 2px;
-  margin-bottom: 6px;
-}
-
-.daily-title {
-  font-size: 22px;
-  font-weight: 800;
-  margin-bottom: 16px;
-}
-
-.daily-title span { color: var(--green); }
-
-/* Daily suggestion card */
-.suggest-card {
-  margin: 0 16px 20px;
-  background: linear-gradient(135deg, rgba(0,255,135,0.08), rgba(0,207,255,0.05));
-  border: 1px solid rgba(0,255,135,0.2);
-  border-radius: 16px;
-  padding: 18px;
-}
-
-.suggest-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--green);
-  letter-spacing: 2px;
-  margin-bottom: 10px;
-}
-
-.suggest-topic {
-  font-size: 17px;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.suggest-sub {
-  font-size: 12px;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  margin-bottom: 14px;
-}
-
-.suggest-btn {
-  background: var(--green);
-  color: #000;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 18px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.suggest-btn:active { transform: scale(0.96); opacity: 0.85; }
-
-/* Weekly calendar */
-.week-row {
-  display: flex;
-  gap: 6px;
-  padding: 0 16px;
-  margin-bottom: 20px;
-}
-
-.week-day {
-  flex: 1;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 8px 4px;
-  text-align: center;
-}
-
-.week-day.today {
-  border-color: rgba(0,255,135,0.3);
-  background: rgba(0,255,135,0.06);
-}
-
-.week-day-name {
-  font-size: 9px;
-  font-family: var(--font-mono);
-  color: var(--muted);
-  margin-bottom: 4px;
-}
-
-.week-day.today .week-day-name { color: var(--green); }
-
-.week-day-num {
-  font-size: 14px;
-  font-weight: 700;
-  font-family: var(--font-mono);
-}
-
-.week-day-dot {
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  margin: 4px auto 0;
-  background: var(--border);
-}
-
-.week-day.has-activity .week-day-dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
-
-/* Recent activity */
-.activity-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
-
-.activity-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 14px;
-}
-
-.activity-icon { font-size: 16px; }
-.activity-info { flex: 1; }
-.activity-name { font-size: 13px; font-weight: 600; }
-.activity-time { font-size: 10px; color: var(--muted); font-family: var(--font-mono); margin-top: 2px; }
-.activity-check { color: var(--green); font-size: 14px; }
-
-/* ─── STATS VIEW ─── */
-.stats-view { padding: 20px 16px 0; }
-
-.stats-title {
-  font-size: 22px;
-  font-weight: 800;
-  margin-bottom: 20px;
-}
-
-.stats-title span { color: var(--green); }
-
-.stat-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 18px;
-  margin-bottom: 12px;
-}
-
-.stat-card-label {
-  font-size: 10px;
-  font-family: var(--font-mono);
-  color: var(--muted);
-  letter-spacing: 2px;
-  margin-bottom: 8px;
-}
-
-.stat-card-value {
-  font-size: 36px;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  line-height: 1;
-}
-
-.phase-progress { display: flex; flex-direction: column; gap: 10px; }
-
-.phase-bar-item { }
-
-.phase-bar-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.phase-bar-name { font-size: 12px; font-weight: 600; }
-.phase-bar-count { font-size: 11px; font-family: var(--font-mono); color: var(--muted); }
-
-.phase-bar-bg {
-  height: 6px;
-  background: var(--border);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.phase-bar-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.8s cubic-bezier(.4,0,.2,1);
-}
-
-.reset-btn-small {
-  width: 100%;
-  margin-top: 8px;
-  background: transparent;
-  border: 1px solid rgba(255,68,102,0.3);
-  color: var(--red);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 2px;
-  padding: 12px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.reset-btn-small:active { background: rgba(255,68,102,0.08); }
-
-/* ─── ANIMATIONS ─── */
-@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-.topic-card { animation: fadeIn 0.2s ease both; }
-
-/* completion flash */
-@keyframes flash-green {
-  0%{background:rgba(0,255,135,0.2)}
-  100%{background:rgba(0,255,135,0.04)}
-}
-.topic-card.done.just-done { animation: flash-green 0.4s ease; }
-
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--muted);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 1px;
+@media(max-width:480px){
+  .brand-name{font-size:14px}
+  .toolbar{top:auto;bottom:56px}
+  .stats-strip{bottom:106px}
+  .mission-banner{top:auto;bottom:106px}
 }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div id="app">
 
-  <!-- ═══ VIEW: TRACKER ═══ -->
-  <div class="view active" id="view-tracker">
-
-    <div class="header">
-      <div class="header-top">
-        <div class="logo">
-          <div class="logo-dot"></div>
-          PYTHON·SEC
-        </div>
-        <div class="streak-badge" id="streak-badge">🔥 0 días</div>
-      </div>
-      <div class="header-title">Mi <span>Progreso</span></div>
-      <div class="stats-row">
-        <div class="ring-wrap">
-          <svg width="72" height="72" viewBox="0 0 72 72">
-            <circle class="ring-bg" cx="36" cy="36" r="30"/>
-            <circle class="ring-fill" id="ring-fill" cx="36" cy="36" r="30"/>
-          </svg>
-          <div class="ring-text">
-            <div class="ring-pct" id="ring-pct">0%</div>
-            <div class="ring-label">DONE</div>
-          </div>
-        </div>
-        <div class="mini-stats">
-          <div class="mini-stat">
-            <div class="mini-stat-num" id="ms-done" style="color:var(--green)">0</div>
-            <div class="mini-stat-label">HECHOS</div>
-          </div>
-          <div class="mini-stat">
-            <div class="mini-stat-num" id="ms-left" style="color:var(--cyan)">60</div>
-            <div class="mini-stat-label">FALTAN</div>
-          </div>
-          <div class="mini-stat">
-            <div class="mini-stat-num" id="ms-streak" style="color:var(--orange)">0</div>
-            <div class="mini-stat-label">RACHA</div>
-          </div>
-          <div class="mini-stat">
-            <div class="mini-stat-num" id="ms-days" style="color:var(--purple)">0</div>
-            <div class="mini-stat-label">DÍAS ACT.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="filter-scroll" id="filter-scroll">
-        <button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">TODOS</button>
-        <button class="filter-btn" data-filter="pending" onclick="setFilter('pending',this)">PENDIENTES</button>
-        <button class="filter-btn" data-filter="done" onclick="setFilter('done',this)">COMPLETADOS</button>
-        <button class="filter-btn" data-filter="0" onclick="setFilter('0',this)">FUNDAMENTOS</button>
-        <button class="filter-btn" data-filter="1" onclick="setFilter('1',this)">INTERMEDIO</button>
-        <button class="filter-btn" data-filter="2" onclick="setFilter('2',this)">REDES/SISTEMA</button>
-        <button class="filter-btn" data-filter="3" onclick="setFilter('3',this)">SEGURIDAD</button>
+  <!-- HEADER -->
+  <header class="header">
+    <div class="brand">
+      <svg class="brand-logo" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#0e1526"/>
+        <g fill="none" stroke="#38bdf8" stroke-width="6" stroke-linecap="round">
+          <circle cx="50" cy="26" r="9"/><circle cx="26" cy="72" r="9"/><circle cx="74" cy="72" r="9"/>
+          <path d="M50 35 L28 64 M50 35 L72 64 M35 72 h30"/></g></svg>
+      <div>
+        <div class="brand-name">Net<b>Forge</b></div>
+        <div class="brand-tag">NETWORK SIMULATOR</div>
       </div>
     </div>
+    <input class="proj-name" id="projName" value="Mi red" spellcheck="false" title="Nombre del proyecto">
+    <div class="hdr-spacer"></div>
+    <div class="hdr-actions">
+      <button class="hbtn" id="btnUndo" title="Deshacer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg></button>
+      <button class="hbtn" id="btnRedo" title="Rehacer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h1"/></svg></button>
+      <button class="hbtn" id="btnTemplates"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span class="lbl">Plantillas</span></button>
+      <button class="hbtn primary" id="btnMissions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/></svg><span class="lbl">Misiones</span></button>
+      <button class="hbtn" id="btnProjects"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="lbl">Proyectos</span></button>
+      <button class="hbtn" id="btnExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 10l5 5 5-5M5 21h14"/></svg><span class="lbl">Exportar</span></button>
+      <button class="hbtn" id="btnHelp" title="Ayuda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
+    </div>
+  </header>
 
-    <div id="topics-container" style="padding-top:14px;"></div>
+  <!-- MAIN -->
+  <div class="main">
+    <svg id="stage"></svg>
+
+    <!-- toolbar -->
+    <div class="toolbar">
+      <button class="tbtn active" id="modeSelect" title="Seleccionar / mover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 4 7.07 17 2.51-7.39L21 11.07z"/></svg></button>
+      <button class="tbtn" id="modeConnect" title="Conectar dispositivos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.6 8.6 15.4 15.4"/></svg></button>
+      <button class="tbtn" id="modeDelete" title="Eliminar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+      <div class="tsep"></div>
+      <button class="tbtn sim" id="btnSim" title="Simular tráfico en vivo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18l15-9z"/></svg></button>
+      <div class="tsep"></div>
+      <button class="tbtn" id="btnZoomIn" title="Acercar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="tbtn" id="btnZoomOut" title="Alejar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg></button>
+      <button class="tbtn" id="btnFit" title="Ajustar a pantalla"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
+    </div>
+
+    <!-- mobile side toggles -->
+    <button class="side-toggle" id="toggle-palette" title="Dispositivos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button>
+    <button class="side-toggle" id="toggle-inspector" title="Propiedades"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+
+    <!-- mission banner -->
+    <div class="mission-banner" id="missionBanner">
+      <div class="mb-info">
+        <div class="mb-t" id="mbTitle">—</div>
+        <div class="mb-p" id="mbProg">0/0 objetivos</div>
+      </div>
+      <div class="mb-prog"><i id="mbBar" style="width:0%"></i></div>
+      <button class="mb-x" id="mbClose" title="Cerrar misión">✕</button>
+    </div>
+
+    <!-- live stats -->
+    <div class="stats-strip" id="statsStrip"></div>
+
+    <div class="backdrop" id="backdrop"></div>
+
+    <!-- PALETTE -->
+    <aside class="panel panel-left" id="palette">
+      <div class="panel-head">
+        <div class="panel-title">DISPOSITIVOS</div>
+        <button class="panel-close" data-close-panel="palette">✕</button>
+      </div>
+      <div class="panel-body" id="paletteBody"></div>
+    </aside>
+
+    <!-- INSPECTOR -->
+    <aside class="panel panel-right" id="inspector">
+      <div class="panel-head">
+        <div class="panel-title" id="inspTitle">RESUMEN</div>
+        <button class="panel-close" data-close-panel="inspector">✕</button>
+      </div>
+      <div class="panel-body" id="inspectorBody"></div>
+    </aside>
   </div>
-
-  <!-- ═══ VIEW: DAILY ═══ -->
-  <div class="view" id="view-daily">
-    <div class="daily-header">
-      <div class="date-display" id="date-display">─</div>
-      <div class="daily-title">Hoy <span>estudias</span></div>
-    </div>
-
-    <div class="suggest-card" id="suggest-card">
-      <div class="suggest-label">// TEMA SUGERIDO</div>
-      <div class="suggest-topic" id="sug-topic">─</div>
-      <div class="suggest-sub" id="sug-sub">─</div>
-      <button class="suggest-btn" onclick="markSuggested()">✓ MARCAR COMO DOMINADO</button>
-    </div>
-
-    <div style="padding:0 16px 10px">
-      <div style="font-size:11px;font-family:var(--font-mono);color:var(--muted);letter-spacing:2px;margin-bottom:10px;">// ESTA SEMANA</div>
-    </div>
-    <div class="week-row" id="week-row"></div>
-
-    <div style="padding:0 16px 10px">
-      <div style="font-size:11px;font-family:var(--font-mono);color:var(--muted);letter-spacing:2px;margin-bottom:10px;">// ÚLTIMOS DOMINADOS</div>
-    </div>
-    <div class="activity-list" id="activity-list">
-      <div class="empty-state">AÚN NO HAY ACTIVIDAD</div>
-    </div>
-  </div>
-
-  <!-- ═══ VIEW: STATS ═══ -->
-  <div class="view" id="view-stats">
-    <div class="stats-view">
-      <div class="stats-title">Tus <span>Stats</span></div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-        <div class="stat-card">
-          <div class="stat-card-label">COMPLETADOS</div>
-          <div class="stat-card-value" id="sv-done" style="color:var(--green)">0</div>
-          <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono);margin-top:4px;">de 60 temas</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-label">RACHA ACTUAL</div>
-          <div class="stat-card-value" id="sv-streak" style="color:var(--orange)">0</div>
-          <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono);margin-top:4px;">días seguidos</div>
-        </div>
-      </div>
-
-      <div class="stat-card" style="margin-bottom:12px;">
-        <div class="stat-card-label">// AVANCE POR SECCIÓN</div>
-        <div style="margin-top:14px;" class="phase-progress" id="phase-progress"></div>
-      </div>
-
-      <div class="stat-card" style="margin-bottom:12px;">
-        <div class="stat-card-label">DÍAS ACTIVO</div>
-        <div class="stat-card-value" id="sv-days" style="color:var(--purple)">0</div>
-        <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono);margin-top:4px;">días estudiando</div>
-      </div>
-
-      <button class="reset-btn-small" onclick="resetAll()">⟳ REINICIAR TODO EL PROGRESO</button>
-    </div>
-  </div>
-
 </div>
 
-<!-- BOTTOM NAV -->
-<nav class="bottom-nav">
-  <button class="nav-btn active" id="nav-tracker" onclick="showView('tracker')">
-    <span class="nav-icon">📋</span>
-    <span class="nav-label">TEMAS</span>
-  </button>
-  <button class="nav-btn" id="nav-daily" onclick="showView('daily')">
-    <span class="nav-icon">⚡</span>
-    <span class="nav-label">HOY</span>
-  </button>
-  <button class="nav-btn" id="nav-stats" onclick="showView('stats')">
-    <span class="nav-icon">📊</span>
-    <span class="nav-label">STATS</span>
-  </button>
-</nav>
+<!-- MODALS -->
+<div class="modal-bg" id="modalTemplates">
+  <div class="modal">
+    <div class="modal-head"><div><h2>Plantillas de red</h2><div class="sub">Carga una topología lista y personalízala a tu gusto</div></div><button class="modal-x" data-close-modal>✕</button></div>
+    <div class="modal-body"><div class="card-grid" id="templatesGrid"></div></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalMissions">
+  <div class="modal">
+    <div class="modal-head"><div><h2>Misiones guiadas</h2><div class="sub">Aprende a diseñar redes reales paso a paso</div></div><button class="modal-x" data-close-modal>✕</button></div>
+    <div class="modal-body" id="missionsBody"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalProjects">
+  <div class="modal">
+    <div class="modal-head"><div><h2>Proyectos</h2><div class="sub">Guardados en este dispositivo · exporta para sincronizar</div></div><button class="modal-x" data-close-modal>✕</button></div>
+    <div class="modal-body">
+      <button class="hbtn primary" id="btnNewProject" style="margin-bottom:14px;width:100%;justify-content:center;padding:11px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> Nuevo proyecto en blanco</button>
+      <div id="projectsList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalExport">
+  <div class="modal">
+    <div class="modal-head"><div><h2>Exportar / Importar</h2><div class="sub">Mueve tus diseños entre dispositivos</div></div><button class="modal-x" data-close-modal>✕</button></div>
+    <div class="modal-body">
+      <div class="card-grid">
+        <button class="tcard" id="expJson"><div class="ico">📄</div><div class="tt">Descargar JSON</div><div class="td">Proyecto completo, editable y re-importable</div></button>
+        <button class="tcard" id="expPng"><div class="ico">🖼️</div><div class="tt">Descargar PNG</div><div class="td">Imagen del diagrama de red actual</div></button>
+        <button class="tcard" id="expSvg"><div class="ico">✏️</div><div class="tt">Descargar SVG</div><div class="td">Vectorial, editable en Figma/Inkscape</div></button>
+        <button class="tcard" id="impJson"><div class="ico">📥</div><div class="tt">Importar JSON</div><div class="td">Carga un proyecto exportado</div></button>
+      </div>
+      <input type="file" id="fileInput" accept="application/json,.json" style="display:none">
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalHelp">
+  <div class="modal">
+    <div class="modal-head"><div><h2>Cómo usar NetForge</h2></div><button class="modal-x" data-close-modal>✕</button></div>
+    <div class="modal-body">
+      <div class="help-sec"><h3>1 · Añade dispositivos</h3><p>Abre el panel <b>Dispositivos</b> y toca (o arrastra) un elemento para colocarlo en el lienzo. Arrastra los nodos para reubicarlos.</p></div>
+      <div class="help-sec"><h3>2 · Conéctalos</h3><p>Activa el modo <span class="kbd">Conectar</span> en la barra de herramientas, toca un dispositivo y luego otro para crear el enlace. Los enlaces wifi se dibujan punteados automáticamente.</p></div>
+      <div class="help-sec"><h3>3 · Configura</h3><p>En modo <span class="kbd">Seleccionar</span> toca un dispositivo para abrir el <b>Inspector</b>: nombre, IP, máscara, gateway, rol, estado, y reglas (firewall/AP).</p></div>
+      <div class="help-sec"><h3>4 · Simula</h3><ul>
+        <li>Pulsa <span class="kbd">▶</span> para lanzar <b>tráfico en vivo</b> y ver los paquetes viajar.</li>
+        <li>Desde el inspector de un equipo usa <b>Ping</b> para enviar un paquete a otro y ver la latencia o el fallo.</li>
+        <li>Marca un dispositivo o enlace como <b>caído</b>, o ajusta <b>latencia</b> y <b>pérdida</b> de paquetes en un enlace para simular fallas.</li>
+      </ul></div>
+      <div class="help-sec"><h3>5 · Aprende con misiones</h3><p>En <b>Misiones</b> elige un reto (colegio, universidad, banco…). Los objetivos se validan en vivo mientras construyes.</p></div>
+      <div class="help-sec"><h3>Sincronización</h3><p>Todo se guarda automáticamente en este dispositivo y funciona sin conexión. Usa <b>Exportar → JSON</b> para llevar un proyecto a otro dispositivo e <b>Importar</b> allí.</p></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
 
 <script>
-// ═══════════════════════════════════════
-// DATA
-// ═══════════════════════════════════════
-const SECTIONS = [
-  {
-    id: 0,
-    name: 'FUNDAMENTOS',
-    color: '#00ff87',
-    topics: [
-      { name: 'Variables y tipos de datos', sub: 'int, str, float, bool, None' },
-      { name: 'Operadores', sub: 'aritméticos, lógicos, comparación' },
-      { name: 'Strings y métodos', sub: 'upper, split, format, f-strings' },
-      { name: 'Input / Output', sub: 'print(), input(), formateo' },
-      { name: 'Condicionales', sub: 'if / elif / else' },
-      { name: 'Bucles for', sub: 'range(), enumerate(), zip()' },
-      { name: 'Bucles while', sub: 'condiciones, loops infinitos' },
-      { name: 'Break, continue, pass', sub: 'control de flujo' },
-      { name: 'Listas', sub: 'append, slice, sort, copy' },
-      { name: 'Tuplas', sub: 'inmutabilidad, desempaquetado' },
-      { name: 'Diccionarios', sub: 'get, items, update, comprensión' },
-      { name: 'Sets', sub: 'unión, intersección, diferencia' },
-      { name: 'List comprehensions', sub: '[x for x in y if z]' },
-      { name: 'Dict comprehensions', sub: '{k:v for k,v in items}' },
-      { name: 'Funciones (def, return)', sub: 'definición, retorno múltiple' },
-      { name: 'Argumentos *args / **kwargs', sub: 'funciones flexibles' },
-      { name: 'Scope y variables globales', sub: 'local, global, nonlocal' },
-      { name: 'Manejo de archivos', sub: 'open(), read, write, with' },
-      { name: 'Excepciones', sub: 'try / except / finally / raise' },
-      { name: 'Módulos e imports', sub: 'import, from, alias' },
-      { name: 'pip y entornos virtuales', sub: 'pip, venv, requirements.txt' },
-    ]
-  },
-  {
-    id: 1,
-    name: 'INTERMEDIO',
-    color: '#00cfff',
-    topics: [
-      { name: 'Clases y Objetos (OOP)', sub: 'class, __init__, self' },
-      { name: 'Herencia y polimorfismo', sub: 'super(), override, MRO' },
-      { name: 'Métodos especiales', sub: '__str__, __repr__, __len__' },
-      { name: 'Decoradores', sub: '@property, @staticmethod, custom' },
-      { name: 'Generadores y yield', sub: 'lazy evaluation, memoria eficiente' },
-      { name: 'Iteradores', sub: '__iter__, __next__, iter()' },
-      { name: 'Context managers', sub: 'with statement, __enter__, __exit__' },
-      { name: 'Expresiones regulares', sub: 're.match, search, findall, grupos' },
-      { name: 'Manejo de fechas', sub: 'datetime, timedelta, strftime' },
-      { name: 'JSON — leer y escribir', sub: 'json.loads, dumps, load, dump' },
-      { name: 'CSV — leer y escribir', sub: 'csv.reader, writer, DictReader' },
-      { name: 'Logging', sub: 'logging.info, WARNING, handlers' },
-      { name: 'Testing con pytest', sub: 'assert, fixtures, parametrize' },
-      { name: 'Type hints y anotaciones', sub: 'str, int, List, Optional, Union' },
-    ]
-  },
-  {
-    id: 2,
-    name: 'REDES / SISTEMA',
-    color: '#ff8c42',
-    topics: [
-      { name: 'Sockets TCP/UDP', sub: 'socket(), bind, listen, connect' },
-      { name: 'Módulo requests (HTTP)', sub: 'GET, POST, headers, sesiones' },
-      { name: 'Web scraping (BeautifulSoup)', sub: 'HTML parsing, find, select' },
-      { name: 'Subprocess', sub: 'run(), Popen, shell=True' },
-      { name: 'OS y pathlib', sub: 'rutas, archivos, directorios' },
-      { name: 'Multithreading', sub: 'Thread, Lock, concurrent.futures' },
-      { name: 'Multiprocessing', sub: 'Pool, Process, Queue' },
-      { name: 'asyncio', sub: 'async/await, event loop, gather' },
-    ]
-  },
-  {
-    id: 3,
-    name: 'PYTHON + SEGURIDAD',
-    color: '#ff4466',
-    topics: [
-      { name: 'Criptografía con cryptography', sub: 'hashing, AES, RSA, Fernet' },
-      { name: 'Port Scanner desde cero', sub: 'socket + threading, banner grab' },
-      { name: 'Packet Sniffing con Scapy', sub: 'captura, filtros, L3/L4' },
-      { name: 'ARP Spoofing / MITM', sub: 'Scapy ARP, intercepción tráfico' },
-      { name: 'Brute-force HTTP', sub: 'wordlists, auth, sesiones' },
-      { name: 'Web Scraping para OSINT', sub: 'Selenium, recon automatizado' },
-      { name: 'Automatización SSH', sub: 'paramiko, credential testing' },
-      { name: 'Fuzzing de directorios', sub: 'dirbusting, custom tools' },
-      { name: 'SQLi automatizada', sub: 'payloads, detección, sqlmap API' },
-      { name: 'Reverse Shell básico', sub: 'subprocess, socket, bind shell' },
-      { name: 'Automatizar Nmap', sub: 'python-nmap, XML parsing' },
-      { name: 'Análisis de malware (pefile)', sub: 'PE headers, imports, strings' },
-      { name: 'Keylogger básico', sub: 'pynput, log to file, threading' },
-      { name: 'Evasión básica de AV', sub: 'XOR encoding, ofuscación' },
-      { name: 'CLI tools con Click/Typer', sub: 'herramientas tipo pro' },
-      { name: 'Reportes automáticos', sub: 'Jinja2, PDF, templates' },
-      { name: 'APIs de seguridad', sub: 'Shodan, VirusTotal API' },
-    ]
+"use strict";
+/* ═══════════════════════════════════════════════════════════════
+   NetForge — Simulador de infraestructuras de red (single-file)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ---------- Device catalog ---------- */
+const GLYPHS = {
+  internet:'<path class="glyph" d="M6 15a3.5 3.5 0 0 1 .5-7 4.5 4.5 0 0 1 8.7-1A3 3 0 0 1 18 15z"/><path class="glyph" d="M9 12h6"/>',
+  router:'<rect class="glyph" x="3" y="13" width="18" height="7" rx="1.5"/><path class="glyph" d="M7 16.5h.01M10 16.5h.01"/><path class="glyph" d="M8 9l3-3m0 0l3 3m-3-3v6"/>',
+  switch:'<rect class="glyph" x="3" y="8" width="18" height="8" rx="1.5"/><path class="glyph" d="M6 11l-2 1 2 1M18 11l2 1-2 1M9 12h6"/>',
+  ap:'<rect class="glyph" x="9" y="15" width="6" height="5" rx="1"/><path class="glyph" d="M12 15v-2M7 10a7 7 0 0 1 10 0M9.5 12a3.5 3.5 0 0 1 5 0"/>',
+  firewall:'<path class="glyph" d="M12 3l7 3v5c0 4.2-3 7.4-7 8.5C8 18.4 5 15.2 5 11V6z"/><path class="glyph" d="M12 8v6M9 11h6"/>',
+  server:'<rect class="glyph" x="4" y="4" width="16" height="7" rx="1.5"/><rect class="glyph" x="4" y="13" width="16" height="7" rx="1.5"/><path class="glyph" d="M8 7.5h.01M8 16.5h.01"/>',
+  pc:'<rect class="glyph" x="3" y="4" width="18" height="12" rx="1.5"/><path class="glyph" d="M8 20h8M12 16v4"/>',
+  laptop:'<rect class="glyph" x="5" y="5" width="14" height="9" rx="1.5"/><path class="glyph" d="M3 18h18l-1.5-3H4.5z"/>',
+  phone:'<rect class="glyph" x="7" y="3" width="10" height="18" rx="2.5"/><path class="glyph" d="M11 18h2"/>',
+  tv:'<rect class="glyph" x="3" y="4" width="18" height="12" rx="1.5"/><path class="glyph" d="M9 20h6M12 16v4"/>',
+  printer:'<path class="glyph" d="M7 8V4h10v4"/><rect class="glyph" x="4" y="8" width="16" height="8" rx="1.5"/><path class="glyph" d="M7 14h10v6H7z"/><path class="glyph" d="M17 11h.01"/>',
+  nas:'<rect class="glyph" x="5" y="3" width="14" height="18" rx="1.5"/><path class="glyph" d="M9 7h6M9 11h6M9 15h.01"/>'
+};
+const TYPES = {
+  internet:{label:'Internet / ISP',cat:'WAN',color:'#38bdf8',role:'WAN (proveedor)',host:false,wan:true,forwards:true},
+  router:  {label:'Router',cat:'Núcleo',color:'#22d3ee',role:'Enrutador L3',host:false,forwards:true,routes:true},
+  firewall:{label:'Firewall',cat:'Seguridad',color:'#f43f5e',role:'Cortafuegos',host:false,forwards:true,fw:true},
+  switch:  {label:'Switch',cat:'Núcleo',color:'#a78bfa',role:'Conmutador L2',host:false,forwards:true},
+  ap:      {label:'Access Point',cat:'Núcleo',color:'#34d399',role:'Punto de acceso wifi',host:false,forwards:true,ap:true},
+  server:  {label:'Servidor',cat:'Endpoints',color:'#fbbf24',role:'Servidor',host:true},
+  nas:     {label:'NAS / Almacén',cat:'Endpoints',color:'#f59e0b',role:'Almacenamiento',host:true},
+  pc:      {label:'PC',cat:'Endpoints',color:'#e2e8f0',role:'Equipo de escritorio',host:true},
+  laptop:  {label:'Portátil',cat:'Endpoints',color:'#cbd5e1',role:'Portátil',host:true,wireless:true},
+  phone:   {label:'Teléfono',cat:'Endpoints',color:'#f0abfc',role:'Móvil',host:true,wireless:true},
+  tv:      {label:'Smart TV',cat:'Endpoints',color:'#93c5fd',role:'TV inteligente',host:true},
+  printer: {label:'Impresora',cat:'Endpoints',color:'#fda4af',role:'Impresora de red',host:true},
+};
+const CATS=['WAN','Seguridad','Núcleo','Endpoints'];
+
+/* ---------- helpers ---------- */
+const $=id=>document.getElementById(id);
+const svgNS='http://www.w3.org/2000/svg';
+function el(tag,attrs){const e=document.createElementNS(svgNS,tag);if(attrs)for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+function uid(){return Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-3);}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function hexRgb(h){h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+
+/* ---------- State ---------- */
+const LS='netforge_v1';
+let store={projects:{},currentId:null};
+let project=null;                 // {id,name,updatedAt,devices:{},links:{},view:{}}
+let view={x:0,y:0,z:1};
+let mode='select';
+let selected=null;                // {kind:'device'|'link', id}
+let pending=null;                 // connect first node id
+let undoStack=[],redoStack=[];
+let sim={on:false,timer:null,sent:0,delivered:0,dropped:0,latSum:0};
+let counters={};                  // per-type naming counters (transient)
+
+/* ---------- Persistence ---------- */
+function loadStore(){
+  try{store=JSON.parse(localStorage.getItem(LS))||store;}catch(e){}
+  if(!store.projects)store.projects={};
+}
+let saveT=null;
+function scheduleSave(){clearTimeout(saveT);saveT=setTimeout(commitSave,400);}
+function commitSave(){
+  if(!project)return;
+  project.updatedAt=Date.now();
+  project.view={...view};
+  store.projects[project.id]=project;
+  store.currentId=project.id;
+  try{localStorage.setItem(LS,JSON.stringify(store));}catch(e){toast('No se pudo guardar (almacenamiento lleno)','bad');}
+}
+
+/* ---------- Project lifecycle ---------- */
+function newProject(name,seed){
+  const p={id:uid(),name:name||'Mi red',updatedAt:Date.now(),devices:{},links:{},view:{x:0,y:0,z:1}};
+  if(seed)seed(p);
+  return p;
+}
+function setProject(p,{resetHist=true}={}){
+  project=p;
+  view=Object.assign({x:0,y:0,z:1},p.view||{});
+  if(resetHist){undoStack=[];redoStack=[];}
+  selected=null;pending=null;
+  $('projName').value=project.name;
+  renderAll();fitView(true);updateStats();refreshInspector();updateUndo();
+  scheduleSave();
+}
+function openProject(id){const p=store.projects[id];if(p)setProject(structuredClone(p));}
+
+/* ---------- Undo/redo ---------- */
+function snap(){return JSON.stringify({devices:project.devices,links:project.links});}
+let pendingSnap=null;
+function beginChange(){pendingSnap=snap();}
+function commitChange(){
+  if(pendingSnap===null)pendingSnap=snap();
+  undoStack.push(pendingSnap);if(undoStack.length>80)undoStack.shift();
+  redoStack=[];pendingSnap=null;updateUndo();
+}
+function mutate(fn){beginChange();fn();commitChange();afterMutate();}
+function afterMutate(){renderAll();updateStats();refreshInspector();scheduleSave();refreshMissions();}
+function undo(){if(!undoStack.length)return;redoStack.push(snap());const s=JSON.parse(undoStack.pop());
+  project.devices=s.devices;project.links=s.links;afterUndo();}
+function redo(){if(!redoStack.length)return;undoStack.push(snap());const s=JSON.parse(redoStack.pop());
+  project.devices=s.devices;project.links=s.links;afterUndo();}
+function afterUndo(){if(selected&&((selected.kind==='device'&&!project.devices[selected.id])||(selected.kind==='link'&&!project.links[selected.id])))selected=null;
+  updateUndo();renderAll();updateStats();refreshInspector();scheduleSave();refreshMissions();}
+function updateUndo(){$('btnUndo').disabled=!undoStack.length;$('btnRedo').disabled=!redoStack.length;}
+
+/* ---------- Device / link ops ---------- */
+function nextName(type){
+  const base={internet:'ISP',router:'Router',firewall:'Firewall',switch:'Switch',ap:'AP',server:'Servidor',
+    nas:'NAS',pc:'PC',laptop:'Laptop',phone:'Móvil',tv:'TV',printer:'Impresora'}[type]||type;
+  let n=1;const names=new Set(Object.values(project.devices).map(d=>d.name));
+  while(names.has(base+'-'+n))n++;
+  return base+'-'+n;
+}
+function defaultIP(type){
+  if(type==='internet')return '';
+  if(type==='router')return '192.168.1.1';
+  const hosts=Object.values(project.devices).filter(d=>TYPES[d.type]&&(TYPES[d.type].host)).length;
+  return '192.168.1.'+(10+hosts);
+}
+function addDevice(type,x,y){
+  const t=TYPES[type];if(!t)return;
+  const d={id:uid(),type,name:nextName(type),x:Math.round(x),y:Math.round(y),status:'up',
+    ip:defaultIP(type),mask:type==='internet'?'':'255.255.255.0',
+    gateway:(t.host?'192.168.1.1':''),notes:'',
+    ssid:t.ap?'MiRed-WiFi':'',policy:t.fw?'allow':''};
+  mutate(()=>{project.devices[d.id]=d;});
+  select('device',d.id);
+  return d;
+}
+function linkExists(a,b){return Object.values(project.links).some(l=>(l.a===a&&l.b===b)||(l.a===b&&l.b===a));}
+function addLink(a,b){
+  if(a===b||linkExists(a,b))return null;
+  const da=project.devices[a],db=project.devices[b];if(!da||!db)return null;
+  const wireless=(TYPES[da.type].ap&&TYPES[db.type].wireless)||(TYPES[db.type].ap&&TYPES[da.type].wireless)||
+                 (TYPES[da.type].wireless&&TYPES[db.type].ap);
+  const l={id:uid(),a,b,status:'up',latency:wireless?8:2,loss:0,wireless};
+  mutate(()=>{project.links[l.id]=l;});
+  return l;
+}
+function deleteDevice(id){mutate(()=>{
+  delete project.devices[id];
+  for(const lid in project.links){if(project.links[lid].a===id||project.links[lid].b===id)delete project.links[lid];}
+});if(selected&&selected.id===id)select(null);}
+function deleteLink(id){mutate(()=>{delete project.links[id];});if(selected&&selected.id===id)select(null);}
+
+/* ---------- Rendering ---------- */
+const stage=$('stage');
+let gGrid,gLinks,gPackets,gNodes;
+const nodeEls={},linkEls={};
+
+function buildLayers(){
+  stage.innerHTML='';
+  const defs=el('defs');
+  // subtle glow filter
+  defs.innerHTML='<filter id="glow"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
+  stage.appendChild(defs);
+  const world=el('g',{id:'world'});
+  gGrid=el('g');gLinks=el('g');gPackets=el('g');gNodes=el('g');
+  world.append(gGrid,gLinks,gPackets,gNodes);
+  stage.appendChild(world);
+  worldEl=world;
+  applyTransform();
+}
+let worldEl;
+function applyTransform(){if(worldEl)worldEl.setAttribute('transform',`translate(${view.x} ${view.y}) scale(${view.z})`);}
+
+function drawGrid(){
+  gGrid.innerHTML='';
+  const step=40,ext=4000;
+  for(let x=-ext;x<=ext;x+=step){const major=(x%200===0);
+    gGrid.appendChild(el('line',{x1:x,y1:-ext,x2:x,y2:ext,class:'grid-line'+(major?' major':'')}));}
+  for(let y=-ext;y<=ext;y+=step){const major=(y%200===0);
+    gGrid.appendChild(el('line',{x1:-ext,y1:y,x2:ext,y2:y,class:'grid-line'+(major?' major':'')}));}
+}
+
+function nodeCenter(d){return{x:d.x,y:d.y};}
+function renderAll(){
+  if(!gNodes)buildLayers();
+  drawGrid();
+  // links
+  gLinks.innerHTML='';for(const k in linkEls)delete linkEls[k];
+  for(const id in project.links){
+    const l=project.links[id];const da=project.devices[l.a],db=project.devices[l.b];if(!da||!db)continue;
+    const hit=el('line',{class:'link-hit','data-lid':id});
+    const line=el('line',{class:'link'+(l.wireless?' wireless':'')+(l.status==='down'?' down':'')+(selected&&selected.kind==='link'&&selected.id===id?' sel':'')});
+    const badge=el('text',{class:'link-badge'});
+    gLinks.append(hit,line,badge);
+    linkEls[id]={hit,line,badge};
+    updateLinkGeom(id);
   }
-];
-
-// Flatten topics with global index
-let allTopics = [];
-let topicNum = 1;
-SECTIONS.forEach(sec => {
-  sec.topics.forEach(t => {
-    allTopics.push({ ...t, secId: sec.id, num: topicNum++, color: sec.color });
-  });
-});
-
-// ═══════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════
-const KEY = 'pysec_tracker_v2';
-let state = {};
-
-function load() {
-  try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { state = {}; }
-  if (!state.done) state.done = {};
-  if (!state.doneAt) state.doneAt = {};
-  if (!state.activeDays) state.activeDays = {};
+  // nodes
+  gNodes.innerHTML='';for(const k in nodeEls)delete nodeEls[k];
+  for(const id in project.devices)renderNode(id);
+}
+function renderNode(id){
+  const d=project.devices[id];const t=TYPES[d.type];
+  const g=el('g',{class:'node'+(d.status==='down'?' down':'')+(selected&&selected.kind==='device'&&selected.id===id?' sel':'')+(pending===id?' pending':''),'data-id':id});
+  g.style.color=t.color;
+  const R=26;
+  g.appendChild(el('rect',{class:'body',x:-R,y:-R,width:R*2,height:R*2,rx:13}));
+  const ig=el('g',{class:'icon',transform:'translate(-12,-12)'});ig.innerHTML=GLYPHS[d.type]||'';g.appendChild(ig);
+  // status dot
+  g.appendChild(el('circle',{class:'status '+(d.status==='down'?'down':'up'),cx:R-6,cy:-R+6,r:5}));
+  // label
+  const lbl=el('text',{class:'nlabel',y:R+15});lbl.textContent=trunc(d.name,14);g.appendChild(lbl);
+  if(d.ip){const ip=el('text',{class:'nip',y:R+27});ip.textContent=d.ip;g.appendChild(ip);}
+  g.setAttribute('transform',`translate(${d.x},${d.y})`);
+  gNodes.appendChild(g);nodeEls[id]=g;
+}
+function trunc(s,n){return s.length>n?s.slice(0,n-1)+'…':s;}
+function updateNodePos(id){const d=project.devices[id];if(nodeEls[id])nodeEls[id].setAttribute('transform',`translate(${d.x},${d.y})`);
+  for(const lid in project.links){const l=project.links[lid];if(l.a===id||l.b===id)updateLinkGeom(lid);}}
+function updateLinkGeom(id){
+  const l=project.links[id],le=linkEls[id];if(!le)return;
+  const a=project.devices[l.a],b=project.devices[l.b];if(!a||!b)return;
+  ['hit','line'].forEach(k=>{le[k].setAttribute('x1',a.x);le[k].setAttribute('y1',a.y);le[k].setAttribute('x2',b.x);le[k].setAttribute('y2',b.y);});
+  const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+  le.badge.setAttribute('x',mx);le.badge.setAttribute('y',my-6);
+  le.badge.textContent=(l.status==='down')?'✕':((l.latency?l.latency+'ms':'')+(l.loss?' '+l.loss+'%':''));
 }
 
-function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
-}
+/* ---------- coordinate transforms ---------- */
+function screenToWorld(sx,sy){const r=stage.getBoundingClientRect();
+  return{x:(sx-r.left-view.x)/view.z,y:(sy-r.top-view.y)/view.z};}
+function stageCenterWorld(){const r=stage.getBoundingClientRect();return screenToWorld(r.left+r.width/2,r.top+r.height/2);}
 
-// ═══════════════════════════════════════
-// STREAK & DAYS
-// ═══════════════════════════════════════
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
+/* ---------- Pan / zoom / drag ---------- */
+const pointers=new Map();
+let dragId=null,dragDX=0,dragDY=0,dragMoved=false;
+let panning=false,lastPX=0,lastPY=0;
+let pinchDist=0;
 
-function recordToday() {
-  state.activeDays[todayStr()] = true;
-  save();
-}
-
-function calcStreak() {
-  const days = Object.keys(state.activeDays).sort().reverse();
-  if (!days.length) return 0;
-  let streak = 0;
-  let d = new Date();
-  for (let i = 0; i < 365; i++) {
-    const s = d.toISOString().slice(0, 10);
-    if (state.activeDays[s]) { streak++; }
-    else if (i > 0) break;
-    d.setDate(d.getDate() - 1);
-  }
-  return streak;
-}
-
-// ═══════════════════════════════════════
-// FILTER
-// ═══════════════════════════════════════
-let currentFilter = 'all';
-
-function setFilter(f, btn) {
-  currentFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderTopics();
-}
-
-// ═══════════════════════════════════════
-// RENDER TRACKER
-// ═══════════════════════════════════════
-function renderTopics() {
-  const container = document.getElementById('topics-container');
-  container.innerHTML = '';
-
-  SECTIONS.forEach(sec => {
-    const filtered = sec.topics.map((t, i) => {
-      const gIdx = allTopics.findIndex(a => a.secId === sec.id && a.name === t.name);
-      return { ...t, gIdx, num: allTopics[gIdx].num, color: sec.color, secId: sec.id };
-    }).filter(t => {
-      if (currentFilter === 'done') return state.done[t.gIdx];
-      if (currentFilter === 'pending') return !state.done[t.gIdx];
-      if (currentFilter === 'all') return true;
-      return String(t.secId) === currentFilter;
-    });
-
-    if (!filtered.length) return;
-
-    const doneInSec = filtered.filter(t => state.done[t.gIdx]).length;
-
-    const head = document.createElement('div');
-    head.className = 'section-head';
-    head.innerHTML = `
-      <div class="section-dot" style="background:${sec.color};box-shadow:0 0 6px ${sec.color}44"></div>
-      <div class="section-name" style="color:${sec.color}">${sec.name}</div>
-      <div class="section-count">${doneInSec}/${filtered.length}</div>
-    `;
-    container.appendChild(head);
-
-    const list = document.createElement('div');
-    list.className = 'topics-list';
-
-    filtered.forEach((t, i) => {
-      const card = document.createElement('div');
-      card.className = 'topic-card' + (state.done[t.gIdx] ? ' done' : '');
-      card.style.animationDelay = (i * 0.03) + 's';
-      card.onclick = () => toggleTopic(t.gIdx, card);
-      card.innerHTML = `
-        <div class="topic-num">${String(t.num).padStart(2,'0')}</div>
-        <div class="topic-info">
-          <div class="topic-name">${t.name}</div>
-          <div class="topic-sub">${t.sub}</div>
-        </div>
-        <div class="check-circle">${state.done[t.gIdx] ? '✓' : ''}</div>
-      `;
-      list.appendChild(card);
-    });
-
-    container.appendChild(list);
-  });
-
-  updateStats();
-}
-
-function toggleTopic(idx, card) {
-  if (state.done[idx]) {
-    delete state.done[idx];
-    delete state.doneAt[idx];
-    card.classList.remove('done');
-    card.querySelector('.check-circle').innerHTML = '';
-  } else {
-    state.done[idx] = true;
-    state.doneAt[idx] = new Date().toISOString();
-    card.classList.add('done', 'just-done');
-    card.querySelector('.check-circle').innerHTML = '✓';
-    setTimeout(() => card.classList.remove('just-done'), 400);
-    recordToday();
-  }
-  save();
-  updateStats();
-  if (document.getElementById('view-daily').classList.contains('active')) renderDaily();
-}
-
-// ═══════════════════════════════════════
-// UPDATE STATS
-// ═══════════════════════════════════════
-function updateStats() {
-  const total = allTopics.length;
-  const done = Object.keys(state.done).length;
-  const pct = Math.round((done / total) * 100);
-  const streak = calcStreak();
-  const days = Object.keys(state.activeDays).length;
-
-  // Ring
-  const circumference = 188.5;
-  const offset = circumference - (pct / 100) * circumference;
-  document.getElementById('ring-fill').style.strokeDashoffset = offset;
-  document.getElementById('ring-pct').textContent = pct + '%';
-
-  // Mini stats
-  document.getElementById('ms-done').textContent = done;
-  document.getElementById('ms-left').textContent = total - done;
-  document.getElementById('ms-streak').textContent = streak;
-  document.getElementById('ms-days').textContent = days;
-
-  // Streak badge
-  document.getElementById('streak-badge').textContent = '🔥 ' + streak + ' días';
-
-  // Stats view
-  document.getElementById('sv-done').textContent = done;
-  document.getElementById('sv-streak').textContent = streak;
-  document.getElementById('sv-days').textContent = days;
-
-  // Phase progress bars
-  const phaseProgress = document.getElementById('phase-progress');
-  if (phaseProgress) {
-    phaseProgress.innerHTML = SECTIONS.map(sec => {
-      const secTopics = allTopics.filter(t => t.secId === sec.id);
-      const secDone = secTopics.filter(t => state.done[allTopics.indexOf(t)]).length;
-      const secPct = Math.round((secDone / secTopics.length) * 100);
-      return `
-        <div class="phase-bar-item">
-          <div class="phase-bar-header">
-            <div class="phase-bar-name" style="color:${sec.color}">${sec.name}</div>
-            <div class="phase-bar-count">${secDone}/${secTopics.length}</div>
-          </div>
-          <div class="phase-bar-bg">
-            <div class="phase-bar-fill" style="width:${secPct}%;background:${sec.color};box-shadow:0 0 6px ${sec.color}44"></div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-}
-
-// ═══════════════════════════════════════
-// DAILY VIEW
-// ═══════════════════════════════════════
-function renderDaily() {
-  // Date
-  const now = new Date();
-  const days = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
-  const months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-  document.getElementById('date-display').textContent =
-    `// ${days[now.getDay()]} ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
-
-  // Next pending topic
-  const nextIdx = allTopics.findIndex((t, i) => !state.done[i]);
-  const sc = document.getElementById('suggest-card');
-  if (nextIdx === -1) {
-    document.getElementById('sug-topic').textContent = '🎉 ¡TODOS COMPLETADOS!';
-    document.getElementById('sug-sub').textContent = 'Eres un crack. Ahora a hackear el mundo.';
-    sc.style.borderColor = 'rgba(0,255,135,0.4)';
-  } else {
-    const t = allTopics[nextIdx];
-    document.getElementById('sug-topic').textContent = `${String(t.num).padStart(2,'0')}. ${t.name}`;
-    document.getElementById('sug-sub').textContent = t.sub;
-    sc.style.borderColor = `rgba(${hexToRgb(t.color)},0.3)`;
-    sc._sugIdx = nextIdx;
-  }
-
-  // Week
-  const weekRow = document.getElementById('week-row');
-  weekRow.innerHTML = '';
-  const dayNames = ['D','L','M','X','J','V','S'];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const ds = d.toISOString().slice(0,10);
-    const isToday = i === 0;
-    const hasAct = !!state.activeDays[ds];
-    const div = document.createElement('div');
-    div.className = 'week-day' + (isToday ? ' today' : '') + (hasAct ? ' has-activity' : '');
-    div.innerHTML = `
-      <div class="week-day-name">${dayNames[d.getDay()]}</div>
-      <div class="week-day-num">${d.getDate()}</div>
-      <div class="week-day-dot"></div>
-    `;
-    weekRow.appendChild(div);
-  }
-
-  // Recent activity
-  const al = document.getElementById('activity-list');
-  const recentEntries = Object.entries(state.doneAt)
-    .sort((a,b) => b[1].localeCompare(a[1]))
-    .slice(0, 5);
-
-  if (!recentEntries.length) {
-    al.innerHTML = '<div class="empty-state">AÚN NO HAY ACTIVIDAD<br><br>Marca tu primer tema ✓</div>';
+stage.addEventListener('pointerdown',e=>{
+  const nodeG=e.target.closest('.node');const linkHit=e.target.closest('.link-hit');
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  stage.setPointerCapture(e.pointerId);
+  if(pointers.size===2){panning=false;dragId=null;const p=[...pointers.values()];pinchDist=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);return;}
+  if(nodeG){
+    const id=nodeG.getAttribute('data-id');
+    if(mode==='delete'){deleteDevice(id);return;}
+    if(mode==='connect'){handleConnect(id);return;}
+    // select mode → start drag
+    select('device',id);
+    const w=screenToWorld(e.clientX,e.clientY);const d=project.devices[id];
+    dragId=id;dragDX=w.x-d.x;dragDY=w.y-d.y;dragMoved=false;pendingSnap=snap();
     return;
   }
+  if(linkHit){
+    const id=linkHit.getAttribute('data-lid');
+    if(mode==='delete'){deleteLink(id);return;}
+    if(mode==='connect')return;
+    select('link',id);if(isMobile())openPanel('inspector');return;
+  }
+  // background
+  if(mode==='connect'&&pending){pending=null;refreshNodeClasses();}
+  select(null);
+  panning=true;lastPX=e.clientX;lastPY=e.clientY;stage.classList.add('panning');
+});
+stage.addEventListener('pointermove',e=>{
+  if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pointers.size===2){const p=[...pointers.values()];const d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);
+    if(pinchDist){const mx=(p[0].x+p[1].x)/2,my=(p[0].y+p[1].y)/2;zoomAt(mx,my,d/pinchDist);}pinchDist=d;return;}
+  if(dragId){const w=screenToWorld(e.clientX,e.clientY);const d=project.devices[dragId];
+    d.x=Math.round(w.x-dragDX);d.y=Math.round(w.y-dragDY);dragMoved=true;updateNodePos(dragId);return;}
+  if(panning){view.x+=e.clientX-lastPX;view.y+=e.clientY-lastPY;lastPX=e.clientX;lastPY=e.clientY;applyTransform();}
+});
+function endPointer(e){
+  pointers.delete(e.pointerId);
+  if(pointers.size<2)pinchDist=0;
+  if(dragId){if(dragMoved){undoStack.push(pendingSnap);if(undoStack.length>80)undoStack.shift();redoStack=[];updateUndo();scheduleSave();refreshMissions();}
+    else if(isMobile())openPanel('inspector');
+    pendingSnap=null;dragId=null;}
+  if(panning){panning=false;stage.classList.remove('panning');scheduleSave();}
+}
+stage.addEventListener('pointerup',endPointer);
+stage.addEventListener('pointercancel',endPointer);
+stage.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,e.deltaY<0?1.12:0.89);},{passive:false});
+function zoomAt(sx,sy,f){const wb=screenToWorld(sx,sy);const r=stage.getBoundingClientRect();
+  view.z=clamp(view.z*f,0.25,3);view.x=sx-r.left-wb.x*view.z;view.y=sy-r.top-wb.y*view.z;applyTransform();scheduleSave();}
 
-  al.innerHTML = recentEntries.map(([idx, iso]) => {
-    const t = allTopics[idx];
-    if (!t) return '';
-    const d = new Date(iso);
-    const timeStr = d.toLocaleDateString('es', { day:'numeric', month:'short' }) + ' · ' +
-      d.toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit' });
-    return `
-      <div class="activity-item">
-        <div class="activity-icon">🐍</div>
-        <div class="activity-info">
-          <div class="activity-name">${t.name}</div>
-          <div class="activity-time">${timeStr}</div>
-        </div>
-        <div class="activity-check">✓</div>
-      </div>
-    `;
-  }).join('');
+function handleConnect(id){
+  if(!pending){pending=id;refreshNodeClasses();return;}
+  if(pending===id){pending=null;refreshNodeClasses();return;}
+  const first=pending;pending=null;
+  const l=addLink(first,id);
+  refreshNodeClasses();
+  if(!l&&linkExists(first,id))toast('Ese enlace ya existe','bad');
+}
+function refreshNodeClasses(){for(const id in nodeEls){nodeEls[id].classList.toggle('pending',pending===id);}}
+
+/* ---------- Selection & inspector ---------- */
+function select(kind,id){
+  selected=kind?{kind,id}:null;
+  // update classes cheaply
+  for(const nid in nodeEls)nodeEls[nid].classList.toggle('sel',!!selected&&selected.kind==='device'&&selected.id===nid);
+  for(const lid in linkEls)linkEls[lid].line.classList.toggle('sel',!!selected&&selected.kind==='link'&&selected.id===lid);
+  refreshInspector();
+}
+function isMobile(){return window.matchMedia('(max-width:900px)').matches;}
+function refreshInspector(){
+  const body=$('inspectorBody'),title=$('inspTitle');
+  if(!selected){title.textContent='RESUMEN';body.innerHTML=overviewHTML();return;}
+  if(selected.kind==='device'){const d=project.devices[selected.id];if(!d){select(null);return;}
+    title.textContent='DISPOSITIVO';body.innerHTML=deviceInspectorHTML(d);bindDeviceInspector(d);}
+  else{const l=project.links[selected.id];if(!l){select(null);return;}
+    title.textContent='ENLACE';body.innerHTML=linkInspectorHTML(l);bindLinkInspector(l);}
+}
+function overviewHTML(){
+  const devs=Object.values(project.devices);
+  const up=devs.filter(d=>d.status==='up').length;
+  const links=Object.values(project.links);
+  const linksUp=links.filter(l=>l.status==='up').length;
+  const rate=sim.sent?Math.round(sim.delivered/sim.sent*100):0;
+  const avg=sim.delivered?Math.round(sim.latSum/sim.delivered):0;
+  // per category bars
+  let bars='';
+  const catCount={};devs.forEach(d=>{const c=TYPES[d.type].cat;catCount[c]=(catCount[c]||0)+1;});
+  CATS.forEach(c=>{const n=catCount[c]||0;if(!n&&c==='WAN')return;const pct=devs.length?Math.round(n/devs.length*100):0;
+    const col={'WAN':'#38bdf8','Seguridad':'#f43f5e','Núcleo':'#a78bfa','Endpoints':'#fbbf24'}[c];
+    bars+=`<div class="bar-item"><div class="bar-head"><span class="bn">${c}</span><span class="bc">${n}</span></div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div></div>`;});
+  return `
+  <div class="ov-card"><div class="ov-title">// INVENTARIO</div>
+    <div class="ov-stats">
+      <div class="ov-stat"><div class="n">${devs.length}</div><div class="l">DISPOSITIVOS</div></div>
+      <div class="ov-stat"><div class="n" style="color:var(--good)">${up}</div><div class="l">ACTIVOS</div></div>
+      <div class="ov-stat"><div class="n" style="color:var(--accent)">${links.length}</div><div class="l">ENLACES</div></div>
+      <div class="ov-stat"><div class="n" style="color:var(--good)">${linksUp}</div><div class="l">ENLACES OK</div></div>
+    </div></div>
+  <div class="ov-card"><div class="ov-title">// SIMULACIÓN</div>
+    <div class="ov-stats">
+      <div class="ov-stat"><div class="n">${sim.sent}</div><div class="l">PAQUETES</div></div>
+      <div class="ov-stat"><div class="n" style="color:var(--good)">${rate}%</div><div class="l">ENTREGA</div></div>
+      <div class="ov-stat"><div class="n" style="color:var(--warn)">${avg}ms</div><div class="l">LAT. MEDIA</div></div>
+      <div class="ov-stat"><div class="n" style="color:var(--bad)">${sim.dropped}</div><div class="l">PERDIDOS</div></div>
+    </div></div>
+  <div class="ov-card"><div class="ov-title">// COMPOSICIÓN</div>${bars||'<div class="insp-empty" style="padding:10px">Añade dispositivos</div>'}</div>
+  ${devs.length?'':'<div class="insp-empty">Toca un dispositivo en el panel izquierdo para empezar, o carga una <b>plantilla</b>.</div>'}`;
+}
+function deviceInspectorHTML(d){
+  const t=TYPES[d.type];
+  const hostOpts=Object.values(project.devices).filter(x=>x.id!==d.id&&TYPES[x.type].host)
+    .map(x=>`<option value="${x.id}">${esc(x.name)} · ${esc(x.ip||'')}</option>`).join('');
+  return `
+  <div class="insp-dev-head">
+    <div class="insp-dev-icon" style="color:${t.color}"><svg viewBox="0 0 24 24">${GLYPHS[d.type]}</svg></div>
+    <div class="insp-dev-meta"><div class="t">${esc(d.name)}</div><div class="s">${esc(t.role)}</div></div>
+  </div>
+  <div class="toggle-row"><span class="tl">Estado: <span style="color:${d.status==='up'?'var(--good)':'var(--bad)'}">${d.status==='up'?'Activo':'Caído'}</span></span>
+    <div class="switch ${d.status==='up'?'on':''}" id="fStatus"></div></div>
+  <div class="field"><label>Nombre</label><input id="fName" value="${esc(d.name)}"></div>
+  ${t.wan?'':`<div class="field-row">
+    <div class="field"><label>Dirección IP</label><input id="fIp" class="mono" value="${esc(d.ip)}" placeholder="192.168.1.10"></div>
+    <div class="field"><label>Máscara</label><input id="fMask" class="mono" value="${esc(d.mask)}" placeholder="255.255.255.0"></div>
+  </div>`}
+  ${t.host?`<div class="field"><label>Puerta de enlace</label><input id="fGw" class="mono" value="${esc(d.gateway)}" placeholder="192.168.1.1"></div>`:''}
+  ${t.ap?`<div class="field"><label>SSID (nombre wifi)</label><input id="fSsid" value="${esc(d.ssid)}"></div>`:''}
+  ${t.fw?`<div class="field"><label>Política de tráfico</label><select id="fPolicy">
+      <option value="allow" ${d.policy==='allow'?'selected':''}>Permitir todo</option>
+      <option value="block" ${d.policy==='block'?'selected':''}>Bloquear paso (deny)</option></select></div>`:''}
+  <div class="field"><label>Notas / rol</label><textarea id="fNotes" rows="2" placeholder="Ej: servidor DNS, DMZ...">${esc(d.notes||'')}</textarea></div>
+  ${t.host?`<div class="ov-card" style="padding:11px;margin-top:4px">
+     <div class="ov-title">// PING</div>
+     <div class="field-row" style="margin-bottom:0">
+       <select id="pingTarget">${hostOpts||'<option value="">— sin destinos —</option>'}</select>
+       <button class="ibtn go" id="pingBtn" style="flex:0 0 auto;padding:9px 14px">Ping ▶</button>
+     </div>
+     <div class="console" id="pingConsole" style="display:none"></div>
+   </div>`:''}
+  <div class="insp-actions"><button class="ibtn danger" id="delDev">Eliminar dispositivo</button></div>`;
+}
+function bindDeviceInspector(d){
+  const on=(id,ev,fn)=>{const e=$(id);if(e)e.addEventListener(ev,fn);};
+  on('fStatus','click',()=>{beginChange();d.status=d.status==='up'?'down':'up';commitChange();afterMutate();});
+  const upd=(prop,id,post)=>on(id,'input',()=>{d[prop]=$(id).value;if(post)post();scheduleSave();
+    if(prop==='name'||prop==='ip'){renderNode(d.id);select('device',d.id);} });
+  // name/ip re-render handled; use change to snapshot once
+  ['fName','fIp','fMask','fGw','fSsid','fNotes'].forEach(fid=>{const map={fName:'name',fIp:'ip',fMask:'mask',fGw:'gateway',fSsid:'ssid',fNotes:'notes'};
+    const e=$(fid);if(!e)return;e.addEventListener('focus',beginChange);
+    e.addEventListener('input',()=>{d[map[fid]]=e.value;if(fid==='fName'||fid==='fIp'){renderNode(d.id);}scheduleSave();refreshMissions();});
+    e.addEventListener('change',()=>{commitChange();});});
+  on('fPolicy','change',()=>{beginChange();d.policy=$('fPolicy').value;commitChange();scheduleSave();});
+  on('delDev','click',()=>{if(confirm('¿Eliminar '+d.name+'?'))deleteDevice(d.id);});
+  on('pingBtn','click',()=>{const tg=$('pingTarget').value;if(!tg)return;runPing(d.id,tg);});
+}
+function linkInspectorHTML(l){
+  const a=project.devices[l.a],b=project.devices[l.b];
+  return `
+  <div class="ov-card"><div class="ov-title">// ENLACE</div>
+    <div style="font-weight:700;font-size:14px">${esc(a?a.name:'?')} ⟷ ${esc(b?b.name:'?')}</div>
+    <div class="s mono" style="color:var(--muted);font-size:11px;margin-top:3px">${l.wireless?'Inalámbrico (wifi)':'Cableado'}</div>
+  </div>
+  <div class="toggle-row"><span class="tl">Estado: <span style="color:${l.status==='up'?'var(--good)':'var(--bad)'}">${l.status==='up'?'Conectado':'Desconectado'}</span></span>
+    <div class="switch ${l.status==='up'?'on':''}" id="lStatus"></div></div>
+  <div class="field"><label>Latencia (ms) — <span id="latVal">${l.latency}</span></label>
+    <input type="range" id="lLat" min="0" max="300" value="${l.latency}"></div>
+  <div class="field"><label>Pérdida de paquetes (%) — <span id="lossVal">${l.loss}</span></label>
+    <input type="range" id="lLoss" min="0" max="100" value="${l.loss}"></div>
+  <div class="insp-actions"><button class="ibtn danger" id="delLink">Eliminar enlace</button></div>`;
+}
+function bindLinkInspector(l){
+  $('lStatus').addEventListener('click',()=>{beginChange();l.status=l.status==='up'?'down':'up';commitChange();afterMutate();});
+  const lat=$('lLat'),loss=$('lLoss');
+  lat.addEventListener('pointerdown',beginChange);loss.addEventListener('pointerdown',beginChange);
+  lat.addEventListener('input',()=>{l.latency=+lat.value;$('latVal').textContent=lat.value;updateLinkGeom(l.id);scheduleSave();});
+  loss.addEventListener('input',()=>{l.loss=+loss.value;$('lossVal').textContent=loss.value;updateLinkGeom(l.id);scheduleSave();});
+  lat.addEventListener('change',commitChange);loss.addEventListener('change',commitChange);
+  $('delLink').addEventListener('click',()=>deleteLink(l.id));
 }
 
-function markSuggested() {
-  const card = document.getElementById('suggest-card');
-  const idx = card._sugIdx;
-  if (idx === undefined || idx === -1) return;
-  if (!state.done[idx]) {
-    state.done[idx] = true;
-    state.doneAt[idx] = new Date().toISOString();
-    recordToday();
-    save();
-    updateStats();
-    renderTopics();
-    renderDaily();
-    // Small haptic hint
-    if (navigator.vibrate) navigator.vibrate(50);
+/* ---------- Graph / routing ---------- */
+function buildAdj(respectStatus){
+  const adj={};for(const id in project.devices)adj[id]=[];
+  for(const lid in project.links){const l=project.links[lid];
+    if(respectStatus&&l.status==='down')continue;
+    const a=project.devices[l.a],b=project.devices[l.b];if(!a||!b)continue;
+    if(respectStatus&&(a.status==='down'||b.status==='down'))continue;
+    adj[l.a].push({to:l.b,lid});adj[l.b].push({to:l.a,lid});}
+  return adj;
+}
+function findPath(src,dst,respectStatus){
+  const adj=buildAdj(respectStatus);const q=[src];const prev={};prev[src]=null;const seen={[src]:1};
+  while(q.length){const cur=q.shift();if(cur===dst)break;
+    for(const e of adj[cur]){if(!seen[e.to]){seen[e.to]=1;prev[e.to]={node:cur,lid:e.lid};q.push(e.to);}}}
+  if(!(dst in prev))return null;
+  const nodes=[dst],links=[];let c=dst;
+  while(prev[c]){links.unshift(prev[c].lid);nodes.unshift(prev[c].node);c=prev[c].node;}
+  return{nodes,links};
+}
+
+/* ---------- Packets animation ---------- */
+let packets=[],rafOn=false;
+function launchPacket(src,dst,opts={}){
+  const path=findPath(src,dst,true);
+  const cb=opts.cb;
+  if(!path){sim.sent++;if(cb)cb({ok:false,reason:'sin ruta'});updateStats();return;}
+  // determine drop point
+  let dropAt=-1,reason='';
+  // firewall block on intermediate nodes
+  for(let i=1;i<path.nodes.length-1;i++){const d=project.devices[path.nodes[i]];
+    if(TYPES[d.type].fw&&d.policy==='block'){dropAt=i;reason='bloqueado por '+d.name;break;}}
+  // packet loss per link
+  if(dropAt<0){for(let i=0;i<path.links.length;i++){const l=project.links[path.links[i]];
+    if(l.loss&&Math.random()*100<l.loss){dropAt=i+1;reason='pérdida en enlace';break;}}}
+  const totalLat=path.links.reduce((s,lid)=>s+(project.links[lid].latency||0),0);
+  sim.sent++;
+  const color=opts.color||(dropAt>=0?'#f43f5e':'#34d399');
+  const c=el('circle',{class:'packet',r:5.5,fill:color});c.style.color=color;gPackets.appendChild(c);
+  packets.push({nodes:path.nodes,links:path.links,seg:0,t0:performance.now(),el:c,dropAt,reason,totalLat,src,dst,cb});
+  if(!rafOn){rafOn=true;requestAnimationFrame(tick);}
+}
+function segDuration(lid){const l=project.links[lid];return Math.max(280,350+(l?l.latency:0)*4);}
+function tick(now){
+  for(let i=packets.length-1;i>=0;i--){const p=packets[i];
+    const from=project.devices[p.nodes[p.seg]],to=project.devices[p.nodes[p.seg+1]];
+    if(!from||!to){finishPacket(p,false,'nodo eliminado');packets.splice(i,1);continue;}
+    const dur=segDuration(p.links[p.seg]);
+    let t=(now-p.t0)/dur;
+    if(t>=1){
+      // reached node p.seg+1
+      if(p.dropAt>=0&&p.seg+1>=p.dropAt){p.el.setAttribute('cx',to.x);p.el.setAttribute('cy',to.y);
+        flash(to.x,to.y,'#f43f5e');finishPacket(p,false,p.reason);packets.splice(i,1);continue;}
+      p.seg++;p.t0=now;
+      if(p.seg>=p.nodes.length-1){p.el.setAttribute('cx',to.x);p.el.setAttribute('cy',to.y);
+        flash(to.x,to.y,'#34d399');finishPacket(p,true);packets.splice(i,1);continue;}
+      t=0;
+    }
+    const cx=from.x+(to.x-from.x)*t,cy=from.y+(to.y-from.y)*t;
+    p.el.setAttribute('cx',cx);p.el.setAttribute('cy',cy);
+  }
+  if(packets.length){requestAnimationFrame(tick);}else rafOn=false;
+}
+function finishPacket(p,ok,reason){
+  p.el.remove();
+  if(ok){sim.delivered++;sim.latSum+=p.totalLat;}else{sim.dropped++;}
+  updateStats();
+  if(p.cb)p.cb({ok,reason:reason||p.reason,lat:p.totalLat});
+}
+function flash(x,y,color){const c=el('circle',{cx:x,cy:y,r:8,fill:'none',stroke:color,'stroke-width':2.5});
+  gPackets.appendChild(c);let r=8,o=1;const t0=performance.now();
+  (function a(now){const k=(now-t0)/450;r=8+k*22;o=1-k;if(k>=1){c.remove();return;}
+    c.setAttribute('r',r);c.setAttribute('opacity',o);requestAnimationFrame(a);})(t0);}
+
+/* ---------- Ping ---------- */
+function runPing(src,dst){
+  const cons=$('pingConsole');if(!cons)return;cons.style.display='block';
+  const dn=project.devices[dst],sn=project.devices[src];
+  addLine(cons,'in','PING '+ (dn.ip||dn.name)+' desde '+(sn.ip||sn.name));
+  let i=0;const N=4;
+  (function next(){if(i>=N){return;}i++;
+    launchPacket(src,dst,{cb:res=>{
+      if(res.ok)addLine(cons,'ok',`respuesta de ${dn.ip||dn.name}: seq=${i} tiempo=${res.lat}ms`);
+      else addLine(cons,'er',`seq=${i} fallo: ${res.reason}`);
+      setTimeout(next,450);
+    }});
+  })();
+}
+function addLine(cons,cls,txt){const d=document.createElement('div');d.className='ln '+cls;d.textContent=txt;cons.appendChild(d);cons.scrollTop=cons.scrollHeight;}
+
+/* ---------- Live sim ---------- */
+function toggleSim(){sim.on=!sim.on;$('btnSim').classList.toggle('active',sim.on);
+  const svg=$('btnSim').querySelector('svg');
+  svg.innerHTML=sim.on?'<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>':'<path d="M5 3v18l15-9z"/>';
+  if(sim.on){toast('Simulación en vivo activada','good');sim.timer=setInterval(simStep,1100);simStep();}
+  else{clearInterval(sim.timer);toast('Simulación pausada');}
+}
+function simStep(){
+  const hosts=Object.values(project.devices).filter(d=>d.status==='up'&&TYPES[d.type].host);
+  if(hosts.length<2)return;
+  for(let k=0;k<Math.min(2,hosts.length-1);k++){
+    const a=hosts[Math.floor(Math.random()*hosts.length)];
+    let b=hosts[Math.floor(Math.random()*hosts.length)];let tries=0;
+    while(b===a&&tries++<5)b=hosts[Math.floor(Math.random()*hosts.length)];
+    if(a!==b)launchPacket(a.id,b.id,{color:'#38bdf8'});
   }
 }
 
-function hexToRgb(hex) {
-  const r = parseInt(hex.slice(1,3),16);
-  const g = parseInt(hex.slice(3,5),16);
-  const b = parseInt(hex.slice(5,7),16);
-  return `${r},${g},${b}`;
+/* ---------- Stats strip ---------- */
+function updateStats(){
+  const devs=Object.values(project.devices);const up=devs.filter(d=>d.status==='up').length;
+  const links=Object.values(project.links).length;
+  const rate=sim.sent?Math.round(sim.delivered/sim.sent*100):100;
+  const strip=$('statsStrip');
+  strip.innerHTML=`
+    <div class="chip"><span class="dot" style="background:var(--accent)"></span><span class="cv">${devs.length}</span><span class="cl">disp.</span></div>
+    <div class="chip"><span class="dot" style="background:var(--good)"></span><span class="cv">${up}</span><span class="cl">activos</span></div>
+    <div class="chip"><span class="cv">${links}</span><span class="cl">enlaces</span></div>
+    ${sim.sent?`<div class="chip"><span class="cv" style="color:${rate>90?'var(--good)':rate>60?'var(--warn)':'var(--bad)'}">${rate}%</span><span class="cl">entrega</span></div>
+    <div class="chip"><span class="cv">${sim.sent}</span><span class="cl">paq.</span></div>`:''}`;
+  if(selected===null&&$('inspTitle').textContent==='RESUMEN')$('inspectorBody').innerHTML=overviewHTML();
 }
 
-// ═══════════════════════════════════════
-// NAVIGATION
-// ═══════════════════════════════════════
-function showView(name) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('view-' + name).classList.add('active');
-  document.getElementById('nav-' + name).classList.add('active');
-  if (name === 'daily') renderDaily();
-  if (name === 'stats') updateStats();
+/* ═══════════════ TEMPLATES ═══════════════ */
+function grid(p,type,name,x,y,extra){const d={id:uid(),type,name,x,y,status:'up',
+  ip:'',mask:TYPES[type].host?'255.255.255.0':(type==='router'?'255.255.255.0':''),gateway:TYPES[type].host?'':'',
+  notes:'',ssid:TYPES[type].ap?'MiRed-WiFi':'',policy:TYPES[type].fw?'allow':''};
+  Object.assign(d,extra||{});p.devices[d.id]=d;return d.id;}
+function conn(p,a,b,extra){const da=p.devices[a],db=p.devices[b];
+  const wireless=(TYPES[da.type].ap&&TYPES[db.type].wireless)||(TYPES[db.type].ap&&TYPES[da.type].wireless);
+  p.links[uid()]={id:uid(),a,b,status:'up',latency:wireless?8:2,loss:0,wireless};}
+
+const TEMPLATES=[
+  {key:'home',ico:'🏠',name:'Red doméstica',diff:'easy',desc:'Tu punto de partida: router del ISP, PC y TV por cable, móvil y portátil por wifi.',build(p){
+    const isp=grid(p,'internet','Internet',0,-160);
+    const r=grid(p,'router','Router ISP',0,-40,{ip:'192.168.1.1'});
+    const ap=grid(p,'ap','WiFi Casa',150,60,{ssid:'MiCasa-WiFi'});
+    const pc=grid(p,'pc','PC Salón',-180,80,{ip:'192.168.1.10',gateway:'192.168.1.1'});
+    const tv=grid(p,'tv','Smart TV',-60,140,{ip:'192.168.1.11',gateway:'192.168.1.1'});
+    const ph=grid(p,'phone','Móvil',120,180,{ip:'192.168.1.20',gateway:'192.168.1.1'});
+    const lp=grid(p,'laptop','Portátil',230,150,{ip:'192.168.1.21',gateway:'192.168.1.1'});
+    conn(p,isp,r);conn(p,r,ap);conn(p,r,pc);conn(p,r,tv);conn(p,ap,ph);conn(p,ap,lp);
+  }},
+  {key:'sme',ico:'🏢',name:'PYME / Oficina',diff:'med',desc:'Firewall, router, switch, servidor de archivos, PCs, impresora y wifi para invitados.',build(p){
+    const isp=grid(p,'internet','Internet',0,-220);
+    const fw=grid(p,'firewall','Firewall',0,-120,{policy:'allow'});
+    const r=grid(p,'router','Router',0,-30,{ip:'10.0.0.1'});
+    const sw=grid(p,'switch','Switch',0,70);
+    const srv=grid(p,'server','Srv Archivos',-200,60,{ip:'10.0.0.5',gateway:'10.0.0.1'});
+    const pr=grid(p,'printer','Impresora',-200,150,{ip:'10.0.0.6',gateway:'10.0.0.1'});
+    const ap=grid(p,'ap','WiFi Oficina',200,70,{ssid:'Oficina-WiFi'});
+    const p1=grid(p,'pc','PC-1',-90,170,{ip:'10.0.0.11',gateway:'10.0.0.1'});
+    const p2=grid(p,'pc','PC-2',10,190,{ip:'10.0.0.12',gateway:'10.0.0.1'});
+    const p3=grid(p,'pc','PC-3',110,180,{ip:'10.0.0.13',gateway:'10.0.0.1'});
+    const lp=grid(p,'laptop','Portátil Dir.',270,160,{ip:'10.0.0.30',gateway:'10.0.0.1'});
+    conn(p,isp,fw);conn(p,fw,r);conn(p,r,sw);conn(p,sw,srv);conn(p,sw,pr);conn(p,sw,ap);
+    conn(p,sw,p1);conn(p,sw,p2);conn(p,sw,p3);conn(p,ap,lp);
+  }},
+  {key:'school',ico:'🎓',name:'Colegio',diff:'med',desc:'Núcleo con firewall, servidor, y dos aulas con switch propio + wifi para alumnos.',build(p){
+    const isp=grid(p,'internet','Internet',0,-260);
+    const fw=grid(p,'firewall','Firewall',0,-160,{policy:'allow'});
+    const r=grid(p,'router','Router Núcleo',0,-70,{ip:'172.16.0.1'});
+    const core=grid(p,'switch','Switch Core',0,20);
+    const srv=grid(p,'server','Srv Escolar',180,-10,{ip:'172.16.0.5',gateway:'172.16.0.1',notes:'Web + archivos'});
+    const swA=grid(p,'switch','Switch Aula A',-200,120);
+    const swB=grid(p,'switch','Switch Aula B',200,120);
+    const ap=grid(p,'ap','WiFi Alumnos',0,120,{ssid:'Colegio-Alumnos'});
+    conn(p,isp,fw);conn(p,fw,r);conn(p,r,core);conn(p,core,srv);conn(p,core,swA);conn(p,core,swB);conn(p,core,ap);
+    for(let i=0;i<4;i++){const pc=grid(p,'pc','A-PC'+(i+1),-320+i*55,220,{ip:'172.16.1.'+(10+i),gateway:'172.16.0.1'});conn(p,swA,pc);}
+    for(let i=0;i<4;i++){const pc=grid(p,'pc','B-PC'+(i+1),120+i*55,220,{ip:'172.16.2.'+(10+i),gateway:'172.16.0.1'});conn(p,swB,pc);}
+    const lp=grid(p,'laptop','Tablet',60,210,{ip:'172.16.3.10',gateway:'172.16.0.1'});conn(p,ap,lp);
+  }},
+  {key:'university',ico:'🏛️',name:'Universidad',diff:'hard',desc:'Red por facultades: routers, firewall, servidores DNS/Web y varios switches con wifi.',build(p){
+    const isp=grid(p,'internet','Internet',0,-300);
+    const fw=grid(p,'firewall','Firewall Perimetral',0,-200,{policy:'allow'});
+    const rc=grid(p,'router','Router Central',0,-100,{ip:'10.10.0.1'});
+    const core=grid(p,'switch','Core Switch',0,-10);
+    const dns=grid(p,'server','DNS',-160,-60,{ip:'10.10.0.53',gateway:'10.10.0.1'});
+    const web=grid(p,'server','Web',-160,30,{ip:'10.10.0.80',gateway:'10.10.0.1'});
+    const rf1=grid(p,'router','Router Fac. Ing.',-220,100,{ip:'10.10.1.1'});
+    const rf2=grid(p,'router','Router Fac. Med.',220,100,{ip:'10.10.2.1'});
+    const s1=grid(p,'switch','Switch Ing.',-220,190);
+    const s2=grid(p,'switch','Switch Med.',220,190);
+    const ap=grid(p,'ap','WiFi Campus',0,120,{ssid:'UNI-Campus'});
+    conn(p,isp,fw);conn(p,fw,rc);conn(p,rc,core);conn(p,core,dns);conn(p,core,web);
+    conn(p,core,rf1);conn(p,core,rf2);conn(p,core,ap);conn(p,rf1,s1);conn(p,rf2,s2);
+    for(let i=0;i<3;i++){const pc=grid(p,'pc','ING-'+(i+1),-320+i*50,280,{ip:'10.10.1.'+(10+i),gateway:'10.10.1.1'});conn(p,s1,pc);}
+    for(let i=0;i<3;i++){const pc=grid(p,'pc','MED-'+(i+1),160+i*50,280,{ip:'10.10.2.'+(10+i),gateway:'10.10.2.1'});conn(p,s2,pc);}
+    const ph=grid(p,'phone','Alumno',60,200,{ip:'10.10.9.10',gateway:'10.10.0.1'});conn(p,ap,ph);
+  }},
+  {key:'techcenter',ico:'🔧',name:'Centro técnico',diff:'med',desc:'Laboratorios con switches, servidor de prácticas, firewall y router.',build(p){
+    const isp=grid(p,'internet','Internet',0,-240);
+    const fw=grid(p,'firewall','Firewall',0,-150,{policy:'allow'});
+    const r=grid(p,'router','Router',0,-60,{ip:'192.168.10.1'});
+    const core=grid(p,'switch','Core',0,30);
+    const srv=grid(p,'server','Srv Prácticas',190,0,{ip:'192.168.10.5',gateway:'192.168.10.1'});
+    const nas=grid(p,'nas','NAS Imágenes',190,90,{ip:'192.168.10.6',gateway:'192.168.10.1'});
+    const l1=grid(p,'switch','Lab 1',-180,120);const l2=grid(p,'switch','Lab 2',180,150);
+    conn(p,isp,fw);conn(p,fw,r);conn(p,r,core);conn(p,core,srv);conn(p,core,nas);conn(p,core,l1);conn(p,core,l2);
+    for(let i=0;i<4;i++){const pc=grid(p,'pc','L1-'+(i+1),-300+i*50,220,{ip:'192.168.11.'+(10+i),gateway:'192.168.10.1'});conn(p,l1,pc);}
+    for(let i=0;i<3;i++){const pc=grid(p,'pc','L2-'+(i+1),110+i*50,240,{ip:'192.168.12.'+(10+i),gateway:'192.168.10.1'});conn(p,l2,pc);}
+  }},
+  {key:'bank',ico:'🏦',name:'Banco (robusta)',diff:'exp',desc:'DMZ segmentada, doble firewall, routers redundantes y servidores críticos.',build(p){
+    const isp=grid(p,'internet','Internet',0,-320);
+    const fwExt=grid(p,'firewall','Firewall Exterior',0,-230,{policy:'allow',notes:'Perímetro'});
+    const dmzSw=grid(p,'switch','Switch DMZ',-180,-150);
+    const web=grid(p,'server','Web público',-300,-90,{ip:'203.0.113.10',notes:'DMZ'});
+    const mail=grid(p,'server','Correo',-300,0,{ip:'203.0.113.11',notes:'DMZ'});
+    const fwInt=grid(p,'firewall','Firewall Interior',0,-120,{policy:'allow',notes:'Núcleo'});
+    const r1=grid(p,'router','Router A',-90,-30,{ip:'10.0.0.1'});
+    const r2=grid(p,'router','Router B (redund.)',90,-30,{ip:'10.0.0.2'});
+    const core=grid(p,'switch','Core Switch',0,60);
+    const dbs=grid(p,'server','BD Transacciones',200,20,{ip:'10.0.0.50',notes:'Crítico'});
+    const app=grid(p,'server','Srv Aplicaciones',200,110,{ip:'10.0.0.51'});
+    const swOf=grid(p,'switch','Switch Oficinas',-180,140);
+    conn(p,isp,fwExt);conn(p,fwExt,dmzSw);conn(p,dmzSw,web);conn(p,dmzSw,mail);conn(p,fwExt,fwInt);
+    conn(p,fwInt,r1);conn(p,fwInt,r2);conn(p,r1,core);conn(p,r2,core);conn(p,core,dbs);conn(p,core,app);conn(p,core,swOf);
+    for(let i=0;i<4;i++){const pc=grid(p,'pc','Cajero-'+(i+1),-300+i*55,230,{ip:'10.0.1.'+(10+i),gateway:'10.0.0.1'});conn(p,swOf,pc);}
+  }},
+  {key:'agency',ico:'🛡️',name:'Agencia de seguridad',diff:'exp',desc:'Segmentación estricta, sin wifi en el núcleo, servidores aislados y monitorización.',build(p){
+    const isp=grid(p,'internet','Internet',0,-300);
+    const fw1=grid(p,'firewall','Firewall Borde',0,-210,{policy:'allow'});
+    const fw2=grid(p,'firewall','Firewall Interno',0,-110,{policy:'allow'});
+    const r=grid(p,'router','Router Seguro',0,-20,{ip:'10.99.0.1'});
+    const core=grid(p,'switch','Core Aislado',0,70);
+    const siem=grid(p,'server','SIEM / Logs',200,10,{ip:'10.99.0.9',notes:'Monitorización'});
+    const vault=grid(p,'server','Bóveda datos',200,100,{ip:'10.99.0.10',notes:'Clasificado'});
+    const swOps=grid(p,'switch','Switch Operaciones',-190,150);
+    conn(p,isp,fw1);conn(p,fw1,fw2);conn(p,fw2,r);conn(p,r,core);conn(p,core,siem);conn(p,core,vault);conn(p,core,swOps);
+    for(let i=0;i<4;i++){const pc=grid(p,'pc','Op-'+(i+1),-310+i*55,240,{ip:'10.99.1.'+(10+i),gateway:'10.99.0.1'});conn(p,swOps,pc);}
+  }},
+];
+function loadTemplate(key){
+  const t=TEMPLATES.find(x=>x.key===key);if(!t)return;
+  const p=newProject(t.name,t.build);setProject(p);closeModal();
+  toast('Plantilla «'+t.name+'» cargada','good');
 }
 
-// ═══════════════════════════════════════
-// RESET
-// ═══════════════════════════════════════
-function resetAll() {
-  if (!confirm('¿Reiniciar todo? Se borrará tu progreso.')) return;
-  state = { done: {}, doneAt: {}, activeDays: {} };
-  save();
-  renderTopics();
-  renderDaily();
-  updateStats();
+/* ═══════════════ MISSIONS ═══════════════ */
+// helper checks operate on design graph (ignore status)
+function devsByType(type){return Object.values(project.devices).filter(d=>d.type===type);}
+function countType(type){return devsByType(type).length;}
+function neighborsOf(id){const r=[];for(const lid in project.links){const l=project.links[lid];
+  if(l.a===id)r.push(l.b);else if(l.b===id)r.push(l.a);}return r;}
+function anyPathDesign(src,pred){ // BFS ignoring status, target predicate on device
+  const adj=buildAdj(false);if(!adj[src])return false;const seen={[src]:1},q=[src];
+  while(q.length){const c=q.shift();if(c!==src&&pred(project.devices[c]))return true;
+    for(const e of adj[c])if(!seen[e.to]){seen[e.to]=1;q.push(e.to);}}return false;}
+function reachesInternet(id){return anyPathDesign(id,d=>d.type==='internet');}
+function hostsReachInternet(){const hs=Object.values(project.devices).filter(d=>TYPES[d.type].host);
+  return hs.length>0&&hs.every(h=>reachesInternet(h.id));}
+function switchWithHosts(n){return devsByType('switch').some(sw=>neighborsOf(sw.id).filter(id=>TYPES[project.devices[id].type].host).length>=n);}
+function typeConnectedToType(ta,tb){for(const lid in project.links){const l=project.links[lid];
+  const a=project.devices[l.a],b=project.devices[l.b];if(!a||!b)continue;
+  if((a.type===ta&&b.type===tb)||(a.type===tb&&b.type===ta))return true;}return false;}
+function internetSegmentedByFirewall(){ // no path internet→host that avoids firewalls
+  const inets=devsByType('internet');if(!inets.length)return false;
+  if(countType('firewall')===0)return false;
+  const adj=buildAdj(false);
+  for(const inet of inets){const seen={[inet.id]:1},q=[inet.id];
+    while(q.length){const c=q.shift();const d=project.devices[c];
+      if(d.type==='firewall'&&c!==inet.id)continue; // don't traverse through firewall
+      if(c!==inet.id&&TYPES[d.type].host)return false; // reached a host without crossing FW
+      for(const e of adj[c])if(!seen[e.to]){seen[e.to]=1;q.push(e.to);}}}
+  return true;
+}
+function hasWireless(){return Object.values(project.links).some(l=>l.wireless);}
+
+const MISSIONS=[
+  {key:'m-home',ico:'🏠',name:'Mi primera red',diff:'easy',
+   desc:'Reproduce tu red de casa: el router del ISP dando internet a un equipo por cable y a un dispositivo por wifi.',
+   objectives:[
+     {t:'Coloca 1 Internet/ISP y 1 Router, y conéctalos',c:()=>countType('internet')>=1&&countType('router')>=1&&typeConnectedToType('internet','router')},
+     {t:'Añade un Access Point conectado al router',c:()=>countType('ap')>=1&&typeConnectedToType('router','ap')},
+     {t:'Conecta al menos 1 equipo por cable (PC/TV) al router',c:()=>['pc','tv'].some(tp=>typeConnectedToType('router',tp))},
+     {t:'Conecta 1 dispositivo por wifi (móvil/portátil) al AP',c:()=>hasWireless()},
+     {t:'Todos los equipos alcanzan internet',c:()=>hostsReachInternet()},
+   ]},
+  {key:'m-building',ico:'🏬',name:'Edificio simple',diff:'easy',
+   desc:'Un edificio pequeño: router, un switch central y varios puestos de trabajo cableados.',
+   objectives:[
+     {t:'1 Router conectado a Internet',c:()=>typeConnectedToType('internet','router')},
+     {t:'1 Switch conectado al router',c:()=>typeConnectedToType('router','switch')},
+     {t:'Al menos 4 PCs colgando de un switch',c:()=>switchWithHosts(4)},
+     {t:'Todos los hosts con salida a internet',c:()=>hostsReachInternet()},
+   ]},
+  {key:'m-school',ico:'🎓',name:'Red de colegio',diff:'med',
+   desc:'Protege la red educativa: firewall en el perímetro, un servidor y wifi para el alumnado.',
+   objectives:[
+     {t:'Firewall entre Internet y la red interna',c:()=>internetSegmentedByFirewall()},
+     {t:'1 servidor en la red',c:()=>countType('server')>=1},
+     {t:'Al menos 6 equipos (PC) en total',c:()=>countType('pc')>=6},
+     {t:'Wifi disponible (Access Point con cliente)',c:()=>countType('ap')>=1&&hasWireless()},
+     {t:'Todos los hosts alcanzan internet',c:()=>hostsReachInternet()},
+   ]},
+  {key:'m-techcenter',ico:'🔧',name:'Centro técnico',diff:'med',
+   desc:'Dos laboratorios independientes con su propio switch y un servidor de prácticas compartido.',
+   objectives:[
+     {t:'Firewall protegiendo la entrada',c:()=>internetSegmentedByFirewall()},
+     {t:'Al menos 2 switches (uno por laboratorio)',c:()=>countType('switch')>=2},
+     {t:'Cada switch con 3+ equipos',c:()=>devsByType('switch').filter(sw=>neighborsOf(sw.id).filter(id=>TYPES[project.devices[id].type].host).length>=3).length>=2},
+     {t:'1 servidor de prácticas (o NAS)',c:()=>countType('server')+countType('nas')>=1},
+   ]},
+  {key:'m-university',ico:'🏛️',name:'Red universitaria',diff:'hard',
+   desc:'Diseña una red por facultades con enrutamiento, servicios centrales (DNS/Web) y wifi de campus.',
+   objectives:[
+     {t:'Firewall perimetral segmentando internet',c:()=>internetSegmentedByFirewall()},
+     {t:'Al menos 2 routers (además del central) para segmentar',c:()=>countType('router')>=3},
+     {t:'2 o más servidores de servicios',c:()=>countType('server')>=2},
+     {t:'3+ switches de distribución',c:()=>countType('switch')>=3},
+     {t:'Wifi de campus operativo',c:()=>countType('ap')>=1&&hasWireless()},
+     {t:'Toda la red con salida a internet',c:()=>hostsReachInternet()},
+   ]},
+  {key:'m-bank',ico:'🏦',name:'Núcleo bancario',diff:'exp',
+   desc:'Máxima robustez: DMZ separada por doble firewall, routers redundantes y servidores críticos aislados.',
+   objectives:[
+     {t:'2 o más firewalls (perímetro + interior)',c:()=>countType('firewall')>=2},
+     {t:'Internet segmentado por firewall (sin acceso directo)',c:()=>internetSegmentedByFirewall()},
+     {t:'Routers redundantes (2+)',c:()=>countType('router')>=2},
+     {t:'3+ servidores (web/BD/apps)',c:()=>countType('server')>=3},
+     {t:'Un switch de core central',c:()=>countType('switch')>=1},
+   ]},
+];
+let activeMission=null;
+function startMission(key){
+  const m=MISSIONS.find(x=>x.key===key);if(!m)return;
+  activeMission=m;closeModal();
+  $('missionBanner').classList.add('show');
+  refreshMissions();
+  toast('Misión iniciada: '+m.name);
+}
+function stopMission(){activeMission=null;$('missionBanner').classList.remove('show');}
+function refreshMissions(){
+  if(!activeMission){return;}
+  let done=0;activeMission.objectives.forEach(o=>{o._ok=!!o.c();if(o._ok)done++;});
+  const total=activeMission.objectives.length;
+  $('mbTitle').textContent=activeMission.name;
+  $('mbProg').textContent=done+'/'+total+' objetivos';
+  $('mbBar').style.width=Math.round(done/total*100)+'%';
+  // if missions modal open, refresh its detail
+  if($('modalMissions').classList.contains('open'))renderMissionsModal();
+  if(done===total&&!activeMission._won){activeMission._won=true;
+    toast('🎉 ¡Misión «'+activeMission.name+'» completada!','good');}
+  if(done<total)activeMission._won=false;
 }
 
-// ═══════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════
-load();
-renderTopics();
-updateStats();
+/* ═══════════════ Panels / palette ═══════════════ */
+function buildPalette(){
+  const body=$('paletteBody');let html='';
+  CATS.forEach(cat=>{
+    const items=Object.entries(TYPES).filter(([k,v])=>v.cat===cat);
+    if(!items.length)return;
+    html+=`<div class="pal-cat">${cat.toUpperCase()}</div><div class="pal-grid">`;
+    items.forEach(([k,v])=>{html+=`<button class="pal-item" data-type="${k}" draggable="true" style="color:${v.color}">
+      <svg viewBox="0 0 24 24">${GLYPHS[k]}</svg><span class="pl">${v.label}</span></button>`;});
+    html+='</div>';
+  });
+  html+=`<div class="pal-hint"><b>Toca</b> para añadir al centro, o <b>arrastra</b> al lienzo. Luego usa <b>Conectar</b> (🔗) para unir dispositivos.</div>`;
+  body.innerHTML=html;
+  body.querySelectorAll('.pal-item').forEach(it=>{
+    const type=it.getAttribute('data-type');
+    it.addEventListener('click',()=>{const c=stageCenterWorld();addDevice(type,c.x+(Math.random()*60-30),c.y+(Math.random()*60-30));
+      if(window.matchMedia('(max-width:900px)').matches)closePanel('palette');});
+    it.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/type',type);e.dataTransfer.effectAllowed='copy';});
+  });
+}
+stage.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='copy';});
+stage.addEventListener('drop',e=>{e.preventDefault();const type=e.dataTransfer.getData('text/type');
+  if(type&&TYPES[type]){const w=screenToWorld(e.clientX,e.clientY);addDevice(type,w.x,w.y);}});
+
+/* ═══════════════ View controls ═══════════════ */
+function setMode(m){mode=m;['select','connect','delete'].forEach(x=>$('mode'+x[0].toUpperCase()+x.slice(1)).classList.toggle('active',x===m));
+  stage.classList.remove('mode-select','mode-connect','mode-delete');stage.classList.add('mode-'+m);
+  if(m!=='connect'){pending=null;refreshNodeClasses();}}
+function fitView(center){
+  const devs=Object.values(project.devices);const r=stage.getBoundingClientRect();
+  if(!devs.length){view={x:r.width/2,y:r.height/2,z:1};applyTransform();return;}
+  let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+  devs.forEach(d=>{minx=Math.min(minx,d.x);miny=Math.min(miny,d.y);maxx=Math.max(maxx,d.x);maxy=Math.max(maxy,d.y);});
+  const pad=80;minx-=pad;miny-=pad;maxx+=pad;maxy+=pad;
+  const w=maxx-minx,h=maxy-miny;const z=clamp(Math.min(r.width/w,r.height/h),0.25,1.6);
+  view.z=z;view.x=r.width/2-(minx+w/2)*z;view.y=r.height/2-(miny+h/2)*z;applyTransform();scheduleSave();
+}
+
+/* ═══════════════ Export / Import ═══════════════ */
+function download(name,data,type){const b=new Blob([data],{type});const u=URL.createObjectURL(b);
+  const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000);}
+function exportJSON(){const data={app:'NetForge',version:1,project};download((project.name||'red')+'.netforge.json',JSON.stringify(data,null,2),'application/json');closeModal();}
+function serializeSVG(){
+  const devs=Object.values(project.devices);
+  let minx=0,miny=0,maxx=400,maxy=300;
+  if(devs.length){minx=Infinity;miny=Infinity;maxx=-Infinity;maxy=-Infinity;
+    devs.forEach(d=>{minx=Math.min(minx,d.x);miny=Math.min(miny,d.y);maxx=Math.max(maxx,d.x);maxy=Math.max(maxy,d.y);});}
+  const pad=70;minx-=pad;miny-=pad;maxx+=pad;maxy+=pad+20;
+  const w=maxx-minx,h=maxy-miny;
+  // clone nodes+links group content with inline colors already set
+  const clone=gLinks.cloneNode(true);const cn=gNodes.cloneNode(true);
+  // strip hit lines
+  clone.querySelectorAll('.link-hit').forEach(n=>n.remove());
+  const s=`<svg xmlns="${svgNS}" width="${w}" height="${h}" viewBox="${minx} ${miny} ${w} ${h}">
+    <style>${document.querySelector('style').textContent}</style>
+    <rect x="${minx}" y="${miny}" width="${w}" height="${h}" fill="#0b1220"/>
+    ${clone.outerHTML}${cn.outerHTML}</svg>`;
+  return s;
+}
+function exportSVG(){download((project.name||'red')+'.svg',serializeSVG(),'image/svg+xml');closeModal();}
+function exportPNG(){
+  const svgStr=serializeSVG();const img=new Image();
+  const blob=new Blob([svgStr],{type:'image/svg+xml;charset=utf-8'});const url=URL.createObjectURL(blob);
+  img.onload=()=>{const scale=2;const c=document.createElement('canvas');c.width=img.width*scale;c.height=img.height*scale;
+    const ctx=c.getContext('2d');ctx.scale(scale,scale);ctx.drawImage(img,0,0);URL.revokeObjectURL(url);
+    c.toBlob(b=>{download((project.name||'red')+'.png',b,'image/png');},'image/png');closeModal();};
+  img.onerror=()=>{toast('No se pudo generar PNG','bad');URL.revokeObjectURL(url);};
+  img.src=url;
+}
+function importJSON(file){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);
+  const p=d.project||d;if(!p.devices)throw 0;p.id=uid();if(!p.name)p.name='Red importada';
+  store.projects[p.id]=p;setProject(structuredClone(p));closeModal();toast('Proyecto importado','good');
+  }catch(e){toast('Archivo no válido','bad');}};r.readAsText(file);}
+
+/* ═══════════════ Modals ═══════════════ */
+function openModal(id){document.querySelectorAll('.modal-bg').forEach(m=>m.classList.remove('open'));$(id).classList.add('open');}
+function closeModal(){document.querySelectorAll('.modal-bg').forEach(m=>m.classList.remove('open'));}
+document.querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal();}));
+
+function renderTemplatesModal(){
+  $('templatesGrid').innerHTML=TEMPLATES.map(t=>`<button class="tcard" data-tpl="${t.key}">
+    <span class="badge ${diffClass(t.diff)}">${diffLabel(t.diff)}</span>
+    <div class="ico">${t.ico}</div><div class="tt">${t.name}</div><div class="td">${t.desc}</div></button>`).join('');
+  $('templatesGrid').querySelectorAll('[data-tpl]').forEach(b=>b.addEventListener('click',()=>loadTemplate(b.getAttribute('data-tpl'))));
+}
+function renderMissionsModal(){
+  const body=$('missionsBody');
+  let html='';
+  if(activeMission){
+    let done=0;activeMission.objectives.forEach(o=>{if(o._ok)done++;});
+    html+=`<div class="ov-card" style="border-color:var(--accent)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-weight:800;font-size:15px">${activeMission.ico} ${activeMission.name}</div>
+        <span class="badge ${diffClass(activeMission.diff)}">${diffLabel(activeMission.diff)}</span></div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">${activeMission.desc}</div>
+      ${activeMission.objectives.map(o=>`<div class="mission-obj">
+        <div class="mo-check ${o._ok?'done':''}">${o._ok?'✓':''}</div>
+        <div class="mo-txt ${o._ok?'done':''}">${o.t}</div></div>`).join('')}
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="ibtn" id="abandonMission">Abandonar misión</button>
+        ${done===activeMission.objectives.length?'<button class="ibtn go" data-close-modal>🎉 ¡Completada!</button>':''}
+      </div></div>`;
+  }
+  html+='<div style="font-size:11px;font-family:var(--mono);color:var(--muted2);letter-spacing:1px;margin:6px 0 10px;font-weight:700">// ELIGE UN RETO</div>';
+  html+='<div class="card-grid">'+MISSIONS.map(m=>`<button class="tcard" data-mis="${m.key}">
+    <span class="badge ${diffClass(m.diff)}">${diffLabel(m.diff)}</span>
+    <div class="ico">${m.ico}</div><div class="tt">${m.name}</div><div class="td">${m.desc}</div></button>`).join('')+'</div>';
+  body.innerHTML=html;
+  body.querySelectorAll('[data-mis]').forEach(b=>b.addEventListener('click',()=>startMission(b.getAttribute('data-mis'))));
+  const ab=$('abandonMission');if(ab)ab.addEventListener('click',()=>{stopMission();renderMissionsModal();});
+  body.querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',closeModal));
+}
+function renderProjectsModal(){
+  const list=$('projectsList');const ids=Object.keys(store.projects).sort((a,b)=>(store.projects[b].updatedAt||0)-(store.projects[a].updatedAt||0));
+  if(!ids.length){list.innerHTML='<div class="insp-empty">No hay proyectos guardados todavía.</div>';return;}
+  list.innerHTML=ids.map(id=>{const p=store.projects[id];const n=Object.keys(p.devices||{}).length;
+    const dt=p.updatedAt?new Date(p.updatedAt).toLocaleString('es',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
+    return `<div class="proj-row"><div class="pinfo"><div class="pt">${esc(p.name)}${id===project.id?' <span style="color:var(--accent);font-size:11px">· actual</span>':''}</div>
+      <div class="pm">${n} disp. · ${dt}</div></div>
+      <div class="pbtns"><button class="mini-btn" data-open="${id}">Abrir</button>
+      <button class="mini-btn danger" data-del="${id}">Borrar</button></div></div>`;}).join('');
+  list.querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click',()=>{openProject(b.getAttribute('data-open'));closeModal();}));
+  list.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{const id=b.getAttribute('data-del');
+    if(!confirm('¿Borrar «'+store.projects[id].name+'»?'))return;delete store.projects[id];
+    if(id===project.id){const rest=Object.keys(store.projects);if(rest.length)setProject(structuredClone(store.projects[rest[0]]));
+      else setProject(newProject('Mi red'));}
+    commitSave();renderProjectsModal();}));
+}
+function diffClass(d){return{easy:'b-easy',med:'b-med',hard:'b-hard',exp:'b-exp'}[d];}
+function diffLabel(d){return{easy:'FÁCIL',med:'MEDIO',hard:'AVANZADO',exp:'EXPERTO'}[d];}
+
+/* ═══════════════ Panels toggling ═══════════════ */
+function openPanel(id){$(id).classList.add('open');$('backdrop').classList.add('show');}
+function closePanel(id){$(id).classList.remove('open');if(!$('palette').classList.contains('open')&&!$('inspector').classList.contains('open'))$('backdrop').classList.remove('show');}
+$('backdrop').addEventListener('click',()=>{$('palette').classList.remove('open');$('inspector').classList.remove('open');$('backdrop').classList.remove('show');});
+document.querySelectorAll('[data-close-panel]').forEach(b=>b.addEventListener('click',()=>closePanel(b.getAttribute('data-close-panel'))));
+$('toggle-palette').addEventListener('click',()=>openPanel('palette'));
+$('toggle-inspector').addEventListener('click',()=>openPanel('inspector'));
+
+/* ═══════════════ Toast ═══════════════ */
+let toastT=null;
+function toast(msg,kind){const t=$('toast');t.textContent=msg;t.className='toast show'+(kind?' '+kind:'');
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200);}
+
+/* ═══════════════ Wire up ═══════════════ */
+$('modeSelect').addEventListener('click',()=>setMode('select'));
+$('modeConnect').addEventListener('click',()=>setMode('connect'));
+$('modeDelete').addEventListener('click',()=>setMode('delete'));
+$('btnSim').addEventListener('click',toggleSim);
+$('btnZoomIn').addEventListener('click',()=>{const r=stage.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,1.2);});
+$('btnZoomOut').addEventListener('click',()=>{const r=stage.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,0.83);});
+$('btnFit').addEventListener('click',()=>fitView());
+$('btnUndo').addEventListener('click',undo);
+$('btnRedo').addEventListener('click',redo);
+$('btnTemplates').addEventListener('click',()=>{renderTemplatesModal();openModal('modalTemplates');});
+$('btnMissions').addEventListener('click',()=>{renderMissionsModal();openModal('modalMissions');});
+$('btnProjects').addEventListener('click',()=>{renderProjectsModal();openModal('modalProjects');});
+$('btnExport').addEventListener('click',()=>openModal('modalExport'));
+$('btnHelp').addEventListener('click',()=>openModal('modalHelp'));
+$('mbClose').addEventListener('click',stopMission);
+$('btnNewProject').addEventListener('click',()=>{setProject(newProject('Nueva red'));closeModal();toast('Proyecto nuevo creado','good');});
+$('expJson').addEventListener('click',exportJSON);
+$('expPng').addEventListener('click',exportPNG);
+$('expSvg').addEventListener('click',exportSVG);
+$('impJson').addEventListener('click',()=>$('fileInput').click());
+$('fileInput').addEventListener('change',e=>{if(e.target.files[0])importJSON(e.target.files[0]);e.target.value='';});
+$('projName').addEventListener('input',()=>{project.name=$('projName').value;scheduleSave();});
+$('projName').addEventListener('blur',()=>{if(!project.name.trim()){project.name='Mi red';$('projName').value=project.name;}scheduleSave();});
+document.addEventListener('keydown',e=>{
+  if(e.target.matches('input,textarea,select'))return;
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();}
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}
+  else if(e.key==='v')setMode('select');else if(e.key==='c')setMode('connect');else if(e.key==='d')setMode('delete');
+  else if((e.key==='Delete'||e.key==='Backspace')&&selected){e.preventDefault();selected.kind==='device'?deleteDevice(selected.id):deleteLink(selected.id);}
+  else if(e.key==='Escape'){if(pending){pending=null;refreshNodeClasses();}else select(null);closeModal();}
+});
+window.addEventListener('resize',()=>{});
+
+/* ═══════════════ Boot ═══════════════ */
+function boot(){
+  loadStore();buildPalette();buildLayers();
+  const ids=Object.keys(store.projects);
+  if(store.currentId&&store.projects[store.currentId])setProject(structuredClone(store.projects[store.currentId]));
+  else if(ids.length)setProject(structuredClone(store.projects[ids[0]]));
+  else {const p=newProject('Mi red',TEMPLATES[0].build);setProject(p);}
+  setMode('select');
+  // first-run hint
+  if(!ids.length)setTimeout(()=>toast('¡Bienvenido! Explora las Misiones para aprender 🚀'),700);
+}
+boot();
 </script>
 </body>
 </html>
