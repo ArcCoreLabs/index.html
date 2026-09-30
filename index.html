@@ -286,6 +286,30 @@ input,select,textarea{font-family:inherit;font-size:13px}
 .help-sec h3{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:7px}
 .help-sec p,.help-sec li{font-size:13px;color:var(--muted);line-height:1.6}
 .help-sec ul{padding-left:18px}
+
+/* rules editor */
+.rule-card{background:var(--panel2);border:1px solid var(--border);border-radius:11px;padding:11px;margin-bottom:9px;border-left:3px solid var(--muted2)}
+.rule-card.allow{border-left-color:var(--good)}
+.rule-card.deny{border-left-color:var(--bad)}
+.rule-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rule-idx{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--muted)}
+.rule-top select,.rule-addr select,.rule-addr input,.rule-grid input,.rule-grid select{background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:6px 8px;color:var(--text);font-size:12px}
+.rule-top select:focus,.rule-grid input:focus,.rule-grid select:focus{outline:none;border-color:var(--accent)}
+.rsel-act{font-weight:700}
+.rule-chk{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);font-family:var(--mono)}
+.rule-chk input{width:15px;height:15px}
+.rule-ops{margin-left:auto;display:flex;gap:4px}
+.rule-ops button{width:28px;height:28px;border-radius:7px;background:var(--panel);border:1px solid var(--border);color:var(--muted);font-size:13px}
+.rule-ops button:hover:not(:disabled){color:var(--text);border-color:var(--border2)}
+.rule-ops button:disabled{opacity:.3;cursor:not-allowed}
+.rule-ops button.danger:hover:not(:disabled){color:var(--bad);border-color:rgba(244,63,94,.4)}
+.rule-grid{display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;margin-top:10px;align-items:end}
+.rule-f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.rule-f>label{font-size:9px;font-family:var(--mono);letter-spacing:.5px;color:var(--muted2);font-weight:600}
+.rule-addr{display:flex;gap:5px}
+.rule-addr select{flex:0 0 auto}.rule-addr input{flex:1;min-width:0;width:100%}
+.rule-grid>input,.rule-grid>select{width:100%}
+@media(max-width:560px){.rule-grid{grid-template-columns:1fr 1fr}}
 .kbd{font-family:var(--mono);font-size:11px;background:var(--panel3);border:1px solid var(--border);
   border-radius:5px;padding:1px 6px;color:var(--text)}
 
@@ -458,9 +482,17 @@ input,select,textarea{font-family:inherit;font-size:13px}
         <li>Desde el inspector de un equipo usa <b>Ping</b> para enviar un paquete a otro y ver la latencia o el fallo.</li>
         <li>Marca un dispositivo o enlace como <b>caído</b>, o ajusta <b>latencia</b> y <b>pérdida</b> de paquetes en un enlace para simular fallas.</li>
       </ul></div>
-      <div class="help-sec"><h3>5 · Aprende con misiones</h3><p>En <b>Misiones</b> elige un reto (colegio, universidad, banco…). Los objetivos se validan en vivo mientras construyes.</p></div>
+      <div class="help-sec"><h3>5 · Firewall con reglas</h3><p>Selecciona un <b>firewall</b> y pulsa <b>Editar reglas</b>. Cada regla tiene acción (permitir/denegar), protocolo, origen y destino (por <b>IP</b>, <b>subred</b> o <b>zona</b>) y puerto. Se evalúan de arriba a abajo y gana la primera que coincide; si ninguna coincide, se aplica la <b>política por defecto</b>. Asigna <b>zonas</b> (LAN/DMZ/WAN) a los dispositivos para escribir reglas potentes, y usa el <b>probador</b> para ver el veredicto al instante. Los servicios (HTTPS, SSH, DNS…) definen el puerto del tráfico en pings y simulación.</p></div>
+      <div class="help-sec"><h3>6 · Aprende con misiones</h3><p>En <b>Misiones</b> elige un reto (colegio, universidad, banco, «Asegura la DMZ»…). Los objetivos se validan en vivo mientras construyes y configuras.</p></div>
       <div class="help-sec"><h3>Sincronización</h3><p>Todo se guarda automáticamente en este dispositivo y funciona sin conexión. Usa <b>Exportar → JSON</b> para llevar un proyecto a otro dispositivo e <b>Importar</b> allí.</p></div>
     </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalRules">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-head"><div><h2 id="rulesTitle">Reglas del firewall</h2><div class="sub">Se evalúan de arriba a abajo · gana la primera coincidencia · si ninguna coincide se aplica la política por defecto</div></div><button class="modal-x" data-close-modal>✕</button></div>
+    <div class="modal-body" id="rulesBody"></div>
   </div>
 </div>
 
@@ -503,6 +535,23 @@ const TYPES = {
 };
 const CATS=['WAN','Seguridad','Núcleo','Endpoints'];
 
+/* ---------- Traffic model (services) ---------- */
+const SERVICES=[
+  {key:'https',label:'HTTPS',proto:'tcp',port:443},
+  {key:'http', label:'HTTP', proto:'tcp',port:80},
+  {key:'dns',  label:'DNS',  proto:'udp',port:53},
+  {key:'ssh',  label:'SSH',  proto:'tcp',port:22},
+  {key:'rdp',  label:'RDP',  proto:'tcp',port:3389},
+  {key:'smb',  label:'Archivos (SMB)',proto:'tcp',port:445},
+  {key:'sql',  label:'Base de datos',proto:'tcp',port:5432},
+  {key:'voip', label:'VoIP',proto:'udp',port:5060},
+  {key:'icmp', label:'ICMP (ping)',proto:'icmp',port:0},
+];
+function svcByKey(k){return SERVICES.find(s=>s.key===k)||SERVICES[0];}
+const ZONES=['','LAN','DMZ','WAN','OT','GUEST'];
+const ZONE_LABEL={'':'— ninguna —','LAN':'LAN (interna)','DMZ':'DMZ (perímetro)','WAN':'WAN (externa)','OT':'OT (industrial)','GUEST':'Invitados'};
+const PROTO_COLORS={tcp:'#38bdf8',udp:'#a78bfa',icmp:'#34d399',any:'#38bdf8'};
+
 /* ---------- helpers ---------- */
 const $=id=>document.getElementById(id);
 const svgNS='http://www.w3.org/2000/svg';
@@ -511,6 +560,51 @@ function uid(){return Math.random().toString(36).slice(2,8)+Date.now().toString(
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function hexRgb(h){h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+
+/* ---------- IP helpers + firewall rule engine ---------- */
+function ipToInt(ip){const p=String(ip||'').trim().split('.');if(p.length!==4)return null;
+  let n=0;for(const o of p){const v=+o;if(!Number.isInteger(v)||v<0||v>255)return null;n=n*256+v;}return n>>>0;}
+function inCidr(ip,cidr){if(!cidr)return false;const parts=String(cidr).trim().split('/');const bits=parts[1]===undefined?32:+parts[1];
+  const a=ipToInt(ip),b=ipToInt(parts[0]);if(a===null||b===null||isNaN(bits)||bits<0||bits>32)return false;
+  const mask=bits===0?0:(0xffffffff<<(32-bits))>>>0;return ((a&mask)>>>0)===((b&mask)>>>0);}
+function matchAddr(type,val,ip,zone){
+  if(!type||type==='any')return true;
+  if(type==='ip')   return ipToInt(val)!==null&&ipToInt(val)===ipToInt(ip);
+  if(type==='subnet')return inCidr(ip,val);
+  if(type==='zone') return (val||'')===(zone||'');
+  return true;}
+function portMatch(rulePort,dport){if(rulePort==null||rulePort===''||rulePort==='any')return true;
+  const s=String(rulePort).trim();
+  if(s.includes('-')){const a=+s.split('-')[0],b=+s.split('-')[1];return dport>=a&&dport<=b;}
+  return +s===+dport;}
+// Evaluate a packet against a firewall's rules (top-down, first match wins; else default policy)
+function evalFirewall(fw,pkt){
+  const rules=fw.rules||[];
+  for(let i=0;i<rules.length;i++){const r=rules[i];if(r.enabled===false)continue;
+    if(r.proto&&r.proto!=='any'&&r.proto!==pkt.proto)continue;
+    if(!matchAddr(r.srcType,r.src,pkt.srcIp,pkt.srcZone))continue;
+    if(!matchAddr(r.dstType,r.dst,pkt.dstIp,pkt.dstZone))continue;
+    if(pkt.proto!=='icmp'&&!portMatch(r.port,pkt.dport))continue;
+    return {action:r.action,rule:r,idx:i};}
+  return {action:(fw.defaultPolicy==='deny'?'deny':'allow'),rule:null,idx:-1};
+}
+// Path-based verdict used by missions / testers (ignores link status)
+function firewallVerdictBetween(srcId,dstId,serviceKey){
+  const path=findPath(srcId,dstId,false);if(!path)return 'noroute';
+  const svc=svcByKey(serviceKey);const sd=project.devices[srcId],dd=project.devices[dstId];
+  if(!sd||!dd)return 'noroute';
+  const pkt={proto:svc.proto,dport:svc.port,service:svc.key,srcIp:sd.ip,dstIp:dd.ip,srcZone:sd.zone,dstZone:dd.zone};
+  for(let i=1;i<path.nodes.length-1;i++){const d=project.devices[path.nodes[i]];
+    if(TYPES[d.type]&&TYPES[d.type].fw&&evalFirewall(d,pkt).action==='deny')return 'deny';}
+  return 'allow';
+}
+// Transient per-firewall log (not persisted, not in undo history)
+let fwLogs={};
+function fwLog(id,cls,txt){const a=fwLogs[id]||(fwLogs[id]=[]);a.unshift({cls,txt});if(a.length>40)a.pop();}
+function fwLogHTML(id){const a=fwLogs[id]||[];
+  if(!a.length)return '<div class="in">Sin tráfico registrado todavía. Ejecuta un ping o la simulación ▶.</div>';
+  return a.slice(0,10).map(e=>`<div class="ln ${e.cls}">${esc(e.txt)}</div>`).join('');}
+function refreshFwLogInline(id){if(selected&&selected.kind==='device'&&selected.id===id){const box=$('fwLog');if(box)box.innerHTML=fwLogHTML(id);}}
 
 /* ---------- State ---------- */
 const LS='netforge_v1';
@@ -546,11 +640,29 @@ function newProject(name,seed){
   if(seed)seed(p);
   return p;
 }
+// Ensure devices carry the fields newer features expect (migrates old saved projects)
+function normalizeProject(p){
+  if(!p||!p.devices)return p;
+  for(const id in p.devices){const d=p.devices[id];d.id=d.id||id;
+    if(d.name===undefined||d.name===null)d.name=((TYPES[d.type]&&TYPES[d.type].label)||d.type||'Dispositivo')+'-'+String(id).slice(0,3);
+    if(d.status===undefined)d.status='up';
+    if(d.ip===undefined)d.ip='';if(d.notes===undefined)d.notes='';
+    if(typeof d.x!=='number')d.x=0;if(typeof d.y!=='number')d.y=0;
+    if(d.zone===undefined)d.zone=(d.type==='internet'?'WAN':'');
+    if(TYPES[d.type]&&TYPES[d.type].fw){
+      if(d.defaultPolicy===undefined)d.defaultPolicy=(d.policy==='block'?'deny':'allow');
+      if(!Array.isArray(d.rules))d.rules=[];
+      delete d.policy;
+    }
+  }
+  return p;
+}
 function setProject(p,{resetHist=true}={}){
+  normalizeProject(p);
   project=p;
   view=Object.assign({x:0,y:0,z:1},p.view||{});
   if(resetHist){undoStack=[];redoStack=[];}
-  selected=null;pending=null;
+  selected=null;pending=null;fwLogs={};
   $('projName').value=project.name;
   renderAll();fitView(true);updateStats();refreshInspector();updateUndo();
   scheduleSave();
@@ -594,8 +706,9 @@ function addDevice(type,x,y){
   const t=TYPES[type];if(!t)return;
   const d={id:uid(),type,name:nextName(type),x:Math.round(x),y:Math.round(y),status:'up',
     ip:defaultIP(type),mask:type==='internet'?'':'255.255.255.0',
-    gateway:(t.host?'192.168.1.1':''),notes:'',
-    ssid:t.ap?'MiRed-WiFi':'',policy:t.fw?'allow':''};
+    gateway:(t.host?'192.168.1.1':''),notes:'',zone:(type==='internet'?'WAN':''),
+    ssid:t.ap?'MiRed-WiFi':''};
+  if(t.fw){d.defaultPolicy='allow';d.rules=[];}
   mutate(()=>{project.devices[d.id]=d;});
   select('device',d.id);
   return d;
@@ -828,15 +941,23 @@ function deviceInspectorHTML(d){
   </div>`}
   ${t.host?`<div class="field"><label>Puerta de enlace</label><input id="fGw" class="mono" value="${esc(d.gateway)}" placeholder="192.168.1.1"></div>`:''}
   ${t.ap?`<div class="field"><label>SSID (nombre wifi)</label><input id="fSsid" value="${esc(d.ssid)}"></div>`:''}
-  ${t.fw?`<div class="field"><label>Política de tráfico</label><select id="fPolicy">
-      <option value="allow" ${d.policy==='allow'?'selected':''}>Permitir todo</option>
-      <option value="block" ${d.policy==='block'?'selected':''}>Bloquear paso (deny)</option></select></div>`:''}
+  <div class="field"><label>Zona de seguridad</label><select id="fZone">${ZONES.map(z=>`<option value="${z}" ${((d.zone||'')===z)?'selected':''}>${ZONE_LABEL[z]}</option>`).join('')}</select></div>
+  ${t.fw?`<div class="ov-card" style="padding:11px;margin-top:2px">
+     <div class="ov-title" style="display:flex;justify-content:space-between;align-items:center">// FIREWALL
+       <span style="font-family:var(--ui);font-weight:700;font-size:11px;color:${(d.rules||[]).length?'var(--accent)':'var(--muted2)'}">${(d.rules||[]).length} regla(s)</span></div>
+     <div class="toggle-row" style="margin:9px 0 0"><span class="tl">Por defecto: <span style="color:${d.defaultPolicy==='deny'?'var(--bad)':'var(--good)'}">${d.defaultPolicy==='deny'?'Denegar':'Permitir'}</span></span>
+       <div class="switch ${d.defaultPolicy==='deny'?'':'on'}" id="fDefPol" title="Política por defecto"></div></div>
+     <button class="ibtn go" id="fEditRules" style="width:100%;margin-top:10px">⚙ Editar reglas del firewall</button>
+     <div class="ov-title" style="margin:12px 0 5px">// LOG EN VIVO</div>
+     <div class="console" id="fwLog">${fwLogHTML(d.id)}</div>
+   </div>`:''}
   <div class="field"><label>Notas / rol</label><textarea id="fNotes" rows="2" placeholder="Ej: servidor DNS, DMZ...">${esc(d.notes||'')}</textarea></div>
   ${t.host?`<div class="ov-card" style="padding:11px;margin-top:4px">
-     <div class="ov-title">// PING</div>
+     <div class="ov-title">// PROBAR TRÁFICO</div>
+     <div class="field" style="margin-bottom:8px"><label>Destino</label><select id="pingTarget">${hostOpts||'<option value="">— sin destinos —</option>'}</select></div>
      <div class="field-row" style="margin-bottom:0">
-       <select id="pingTarget">${hostOpts||'<option value="">— sin destinos —</option>'}</select>
-       <button class="ibtn go" id="pingBtn" style="flex:0 0 auto;padding:9px 14px">Ping ▶</button>
+       <select id="pingSvc">${SERVICES.map(s=>`<option value="${s.key}">${s.label}${s.port?' · '+s.port:''}</option>`).join('')}</select>
+       <button class="ibtn go" id="pingBtn" style="flex:0 0 auto;padding:9px 14px">Enviar ▶</button>
      </div>
      <div class="console" id="pingConsole" style="display:none"></div>
    </div>`:''}
@@ -852,9 +973,11 @@ function bindDeviceInspector(d){
     const e=$(fid);if(!e)return;e.addEventListener('focus',beginChange);
     e.addEventListener('input',()=>{d[map[fid]]=e.value;if(fid==='fName'||fid==='fIp'){renderNode(d.id);}scheduleSave();refreshMissions();});
     e.addEventListener('change',()=>{commitChange();});});
-  on('fPolicy','change',()=>{beginChange();d.policy=$('fPolicy').value;commitChange();scheduleSave();});
+  on('fZone','change',()=>{beginChange();d.zone=$('fZone').value;commitChange();scheduleSave();refreshMissions();});
+  on('fDefPol','click',()=>{beginChange();d.defaultPolicy=(d.defaultPolicy==='deny'?'allow':'deny');commitChange();afterMutate();refreshMissions();});
+  on('fEditRules','click',()=>openRulesModal(d.id));
   on('delDev','click',()=>{if(confirm('¿Eliminar '+d.name+'?'))deleteDevice(d.id);});
-  on('pingBtn','click',()=>{const tg=$('pingTarget').value;if(!tg)return;runPing(d.id,tg);});
+  on('pingBtn','click',()=>{const tg=$('pingTarget').value;if(!tg)return;runPing(d.id,tg,$('pingSvc')?$('pingSvc').value:'icmp');});
 }
 function linkInspectorHTML(l){
   const a=project.devices[l.a],b=project.devices[l.b];
@@ -906,18 +1029,26 @@ let packets=[],rafOn=false;
 function launchPacket(src,dst,opts={}){
   const path=findPath(src,dst,true);
   const cb=opts.cb;
+  const svc=opts.service||svcByKey('icmp');
+  const sd=project.devices[src],dd=project.devices[dst];
+  const pkt={proto:svc.proto,dport:svc.port,service:svc.key,
+    srcIp:sd?sd.ip:'',dstIp:dd?dd.ip:'',srcZone:sd?sd.zone:'',dstZone:dd?dd.zone:''};
   if(!path){sim.sent++;if(cb)cb({ok:false,reason:'sin ruta'});updateStats();return;}
-  // determine drop point
   let dropAt=-1,reason='';
-  // firewall block on intermediate nodes
+  // firewall rule evaluation on intermediate nodes
   for(let i=1;i<path.nodes.length-1;i++){const d=project.devices[path.nodes[i]];
-    if(TYPES[d.type].fw&&d.policy==='block'){dropAt=i;reason='bloqueado por '+d.name;break;}}
+    if(TYPES[d.type]&&TYPES[d.type].fw){const v=evalFirewall(d,pkt);
+      const tag=v.rule?('#'+(v.idx+1)):'defecto';
+      fwLog(d.id, v.action==='deny'?'er':'ok',
+        `${v.action==='deny'?'✗ DENY':'✓ ALLOW'} ${svc.label} ${pkt.srcIp||(sd&&sd.name)||'?'} → ${pkt.dstIp||(dd&&dd.name)||'?'} [${tag}]`);
+      refreshFwLogInline(d.id);
+      if(v.action==='deny'){dropAt=i;reason='denegado por '+d.name+' ('+(v.rule?('regla #'+(v.idx+1)):'política por defecto')+')';break;}}}
   // packet loss per link
   if(dropAt<0){for(let i=0;i<path.links.length;i++){const l=project.links[path.links[i]];
     if(l.loss&&Math.random()*100<l.loss){dropAt=i+1;reason='pérdida en enlace';break;}}}
   const totalLat=path.links.reduce((s,lid)=>s+(project.links[lid].latency||0),0);
   sim.sent++;
-  const color=opts.color||(dropAt>=0?'#f43f5e':'#34d399');
+  const color=opts.color||(dropAt>=0?'#f43f5e':(PROTO_COLORS[svc.proto]||'#34d399'));
   const c=el('circle',{class:'packet',r:5.5,fill:color});c.style.color=color;gPackets.appendChild(c);
   packets.push({nodes:path.nodes,links:path.links,seg:0,t0:performance.now(),el:c,dropAt,reason,totalLat,src,dst,cb});
   if(!rafOn){rafOn=true;requestAnimationFrame(tick);}
@@ -955,13 +1086,13 @@ function flash(x,y,color){const c=el('circle',{cx:x,cy:y,r:8,fill:'none',stroke:
     c.setAttribute('r',r);c.setAttribute('opacity',o);requestAnimationFrame(a);})(t0);}
 
 /* ---------- Ping ---------- */
-function runPing(src,dst){
+function runPing(src,dst,serviceKey){
   const cons=$('pingConsole');if(!cons)return;cons.style.display='block';
-  const dn=project.devices[dst],sn=project.devices[src];
-  addLine(cons,'in','PING '+ (dn.ip||dn.name)+' desde '+(sn.ip||sn.name));
+  const dn=project.devices[dst],sn=project.devices[src];const svc=svcByKey(serviceKey||'icmp');
+  addLine(cons,'in',`${svc.label} → ${dn.ip||dn.name} desde ${sn.ip||sn.name}`);
   let i=0;const N=4;
   (function next(){if(i>=N){return;}i++;
-    launchPacket(src,dst,{cb:res=>{
+    launchPacket(src,dst,{service:svc,cb:res=>{
       if(res.ok)addLine(cons,'ok',`respuesta de ${dn.ip||dn.name}: seq=${i} tiempo=${res.lat}ms`);
       else addLine(cons,'er',`seq=${i} fallo: ${res.reason}`);
       setTimeout(next,450);
@@ -984,7 +1115,7 @@ function simStep(){
     const a=hosts[Math.floor(Math.random()*hosts.length)];
     let b=hosts[Math.floor(Math.random()*hosts.length)];let tries=0;
     while(b===a&&tries++<5)b=hosts[Math.floor(Math.random()*hosts.length)];
-    if(a!==b)launchPacket(a.id,b.id,{color:'#38bdf8'});
+    if(a!==b)launchPacket(a.id,b.id,{service:SERVICES[Math.floor(Math.random()*SERVICES.length)]});
   }
 }
 
@@ -1006,7 +1137,8 @@ function updateStats(){
 /* ═══════════════ TEMPLATES ═══════════════ */
 function grid(p,type,name,x,y,extra){const d={id:uid(),type,name,x,y,status:'up',
   ip:'',mask:TYPES[type].host?'255.255.255.0':(type==='router'?'255.255.255.0':''),gateway:TYPES[type].host?'':'',
-  notes:'',ssid:TYPES[type].ap?'MiRed-WiFi':'',policy:TYPES[type].fw?'allow':''};
+  notes:'',zone:(type==='internet'?'WAN':''),ssid:TYPES[type].ap?'MiRed-WiFi':''};
+  if(TYPES[type].fw){d.defaultPolicy='allow';d.rules=[];}
   Object.assign(d,extra||{});p.devices[d.id]=d;return d.id;}
 function conn(p,a,b,extra){const da=p.devices[a],db=p.devices[b];
   const wireless=(TYPES[da.type].ap&&TYPES[db.type].wireless)||(TYPES[db.type].ap&&TYPES[da.type].wireless);
@@ -1147,6 +1279,9 @@ function internetSegmentedByFirewall(){ // no path internet→host that avoids f
   return true;
 }
 function hasWireless(){return Object.values(project.links).some(l=>l.wireless);}
+function internetDev(){return devsByType('internet')[0];}
+function devWhere(pred){return Object.values(project.devices).find(pred);}
+function hostsInZone(z){return Object.values(project.devices).filter(d=>TYPES[d.type].host&&d.zone===z);}
 
 const MISSIONS=[
   {key:'m-home',ico:'🏠',name:'Mi primera red',diff:'easy',
@@ -1174,6 +1309,22 @@ const MISSIONS=[
      {t:'Al menos 6 equipos (PC) en total',c:()=>countType('pc')>=6},
      {t:'Wifi disponible (Access Point con cliente)',c:()=>countType('ap')>=1&&hasWireless()},
      {t:'Todos los hosts alcanzan internet',c:()=>hostsReachInternet()},
+   ]},
+  {key:'m-dmz',ico:'🧱',name:'Asegura la DMZ',diff:'hard',
+   desc:'Escenario listo: configura las REGLAS del firewall para publicar la web de la DMZ, dejar navegar a la LAN y bloquear el acceso externo a la red interna.',
+   seed(p){
+     const i=grid(p,'internet','Internet',0,-200,{zone:'WAN'});
+     const fw=grid(p,'firewall','Firewall',0,-90,{defaultPolicy:'deny',rules:[]});
+     const sw=grid(p,'switch','Switch',0,10);
+     const web=grid(p,'server','Web DMZ',-170,110,{ip:'203.0.113.10',zone:'DMZ',gateway:'203.0.113.1',notes:'Servidor web público'});
+     const pc=grid(p,'pc','PC Oficina',170,110,{ip:'192.168.1.10',zone:'LAN',gateway:'192.168.1.1'});
+     conn(p,i,fw);conn(p,fw,sw);conn(p,sw,web);conn(p,sw,pc);
+   },
+   objectives:[
+     {t:'El firewall usa política «denegar por defecto»',c:()=>devsByType('firewall').some(f=>f.defaultPolicy==='deny')},
+     {t:'Publica la web: Internet → Web (DMZ) por HTTPS = permitido',c:()=>{const i=internetDev(),w=devWhere(d=>d.zone==='DMZ'&&TYPES[d.type].host);return !!(i&&w)&&firewallVerdictBetween(i.id,w.id,'https')==='allow';}},
+     {t:'Protege la LAN: Internet → PC de la LAN = denegado',c:()=>{const i=internetDev(),lan=hostsInZone('LAN');return !!i&&lan.length>0&&lan.every(h=>firewallVerdictBetween(i.id,h.id,'https')==='deny');}},
+     {t:'Deja navegar a la LAN: PC (LAN) → Internet por HTTPS = permitido',c:()=>{const i=internetDev(),lan=hostsInZone('LAN');return !!i&&lan.length>0&&lan.every(h=>firewallVerdictBetween(h.id,i.id,'https')==='allow');}},
    ]},
   {key:'m-techcenter',ico:'🔧',name:'Centro técnico',diff:'med',
    desc:'Dos laboratorios independientes con su propio switch y un servidor de prácticas compartido.',
@@ -1206,6 +1357,12 @@ const MISSIONS=[
 let activeMission=null;
 function startMission(key){
   const m=MISSIONS.find(x=>x.key===key);if(!m)return;
+  if(m.seed){
+    const hasDevices=Object.keys(project.devices).length>0;
+    if(!hasDevices||confirm('Esta misión incluye un escenario base. ¿Cargarlo? (reemplaza tu red actual)')){
+      setProject(newProject(m.name,m.seed));
+    }
+  }
   activeMission=m;closeModal();
   $('missionBanner').classList.add('show');
   refreshMissions();
@@ -1354,6 +1511,87 @@ function renderProjectsModal(){
     if(id===project.id){const rest=Object.keys(store.projects);if(rest.length)setProject(structuredClone(store.projects[rest[0]]));
       else setProject(newProject('Mi red'));}
     commitSave();renderProjectsModal();}));
+}
+/* ═══════════════ Firewall rules editor ═══════════════ */
+let currentFwId=null;
+function fwDev(){return project.devices[currentFwId];}
+function newRule(){return{id:uid(),enabled:true,action:'allow',proto:'any',srcType:'any',src:'',dstType:'any',dst:'',port:'any',log:true};}
+function openRulesModal(fwId){currentFwId=fwId;renderRulesModal();openModal('modalRules');}
+function mutateRules(fn){beginChange();fn();commitChange();scheduleSave();refreshMissions();renderRulesModal();refreshInspector();}
+function renderRulesModal(){
+  const fw=fwDev();if(!fw){closeModal();return;}
+  const body=$('rulesBody');const rules=fw.rules||(fw.rules=[]);
+  const sel=(val,opts)=>opts.map(o=>`<option value="${o[0]}" ${val===o[0]?'selected':''}>${o[1]}</option>`).join('');
+  const typeOpts=[['any','Cualquiera'],['ip','IP'],['subnet','Subred'],['zone','Zona']];
+  const protoOpts=[['any','Cualquiera'],['tcp','TCP'],['udp','UDP'],['icmp','ICMP']];
+  const actOpts=[['allow','PERMITIR'],['deny','DENEGAR']];
+  const addrCtl=(side,r,ri)=>{const type=r[side+'Type']||'any',val=r[side]||'';let vc;
+    if(type==='zone')vc=`<select data-rf="${side}" data-ri="${ri}">${ZONES.filter(z=>z).map(z=>`<option value="${z}" ${val===z?'selected':''}>${z}</option>`).join('')}</select>`;
+    else if(type==='ip'||type==='subnet')vc=`<input data-rf="${side}" data-ri="${ri}" class="mono" value="${esc(val)}" placeholder="${type==='subnet'?'10.0.0.0/24':'10.0.0.5'}">`;
+    else vc=`<input class="mono" value="cualquiera" disabled>`;
+    return `<select data-rf="${side}Type" data-ri="${ri}">${sel(type,typeOpts)}</select>${vc}`;};
+  let html=`<div class="toggle-row" style="margin-bottom:12px">
+    <span class="tl">Política por defecto: <span style="color:${fw.defaultPolicy==='deny'?'var(--bad)':'var(--good)'}">${fw.defaultPolicy==='deny'?'DENEGAR lo no permitido':'PERMITIR lo no denegado'}</span></span>
+    <div class="switch ${fw.defaultPolicy==='deny'?'':'on'}" id="rDefPol"></div></div>`;
+  if(!rules.length)html+=`<div class="insp-empty" style="padding:16px">Aún no hay reglas. ${fw.defaultPolicy==='deny'?'Con «denegar por defecto» nada pasa hasta que añadas reglas de PERMITIR.':'Con «permitir por defecto» todo pasa hasta que añadas reglas de DENEGAR.'}</div>`;
+  rules.forEach((r,ri)=>{html+=`<div class="rule-card ${r.action}">
+    <div class="rule-top">
+      <span class="rule-idx">#${ri+1}</span>
+      <select class="rsel-act" data-rf="action" data-ri="${ri}">${sel(r.action,actOpts)}</select>
+      <select data-rf="proto" data-ri="${ri}">${sel(r.proto,protoOpts)}</select>
+      <label class="rule-chk"><input type="checkbox" data-rf="enabled" data-ri="${ri}" ${r.enabled!==false?'checked':''}> activa</label>
+      <div class="rule-ops">
+        <button data-rmove="-1" data-ri="${ri}" ${ri===0?'disabled':''} title="Subir">↑</button>
+        <button data-rmove="1" data-ri="${ri}" ${ri===rules.length-1?'disabled':''} title="Bajar">↓</button>
+        <button data-rdel="${ri}" class="danger" title="Eliminar">🗑</button>
+      </div>
+    </div>
+    <div class="rule-grid">
+      <div class="rule-f"><label>Origen</label><div class="rule-addr">${addrCtl('src',r,ri)}</div></div>
+      <div class="rule-f"><label>Destino</label><div class="rule-addr">${addrCtl('dst',r,ri)}</div></div>
+      <div class="rule-f"><label>Puerto</label><input data-rf="port" data-ri="${ri}" class="mono" value="${esc(r.port||'any')}" placeholder="443 / 1-1024" ${r.proto==='icmp'?'disabled':''}></div>
+      <label class="rule-chk" style="align-self:end"><input type="checkbox" data-rf="log" data-ri="${ri}" ${r.log!==false?'checked':''}> log</label>
+    </div></div>`;});
+  html+=`<button class="ibtn go" id="rAdd" style="width:100%;margin-top:6px">➕ Añadir regla</button>`;
+  const hosts=Object.values(project.devices).filter(d=>TYPES[d.type].host||d.type==='internet');
+  const hostOpt=hosts.map(h=>`<option value="${h.id}">${esc(h.name)}${h.ip?' · '+h.ip:''}${h.zone?' ['+h.zone+']':''}</option>`).join('');
+  html+=`<div class="ov-card" style="margin-top:14px">
+    <div class="ov-title">// PROBADOR — ¿qué haría ESTE firewall?</div>
+    <div class="rule-grid" style="margin-top:8px">
+      <div class="rule-f"><label>Origen</label><select id="tSrc">${hostOpt}</select></div>
+      <div class="rule-f"><label>Destino</label><select id="tDst">${hostOpt}</select></div>
+      <div class="rule-f"><label>Servicio</label><select id="tSvc">${SERVICES.map(s=>`<option value="${s.key}">${s.label}</option>`).join('')}</select></div>
+      <button class="ibtn go" id="tRun" style="align-self:end">Probar</button>
+    </div>
+    <div id="tResult" style="margin-top:10px;font-family:var(--mono);font-size:12px;color:var(--muted)">Elige origen, destino y servicio, luego pulsa Probar.</div>
+  </div>`;
+  $('rulesTitle').textContent='Reglas · '+fw.name;
+  body.innerHTML=html;bindRulesModal();
+}
+function bindRulesModal(){
+  const fw=fwDev();if(!fw)return;const rules=fw.rules;
+  $('rDefPol').addEventListener('click',()=>mutateRules(()=>{fw.defaultPolicy=(fw.defaultPolicy==='deny'?'allow':'deny');}));
+  $('rAdd').addEventListener('click',()=>mutateRules(()=>{rules.push(newRule());}));
+  $('rulesBody').querySelectorAll('[data-rdel]').forEach(b=>b.addEventListener('click',()=>{const i=+b.getAttribute('data-rdel');mutateRules(()=>{rules.splice(i,1);});}));
+  $('rulesBody').querySelectorAll('[data-rmove]').forEach(b=>b.addEventListener('click',()=>{const i=+b.getAttribute('data-ri'),dir=+b.getAttribute('data-rmove'),j=i+dir;if(j<0||j>=rules.length)return;mutateRules(()=>{const t=rules[i];rules[i]=rules[j];rules[j]=t;});}));
+  $('rulesBody').querySelectorAll('select[data-rf],input[type=checkbox][data-rf]').forEach(elm=>{
+    elm.addEventListener('change',()=>{const i=+elm.getAttribute('data-ri'),f=elm.getAttribute('data-rf');
+      const val=elm.type==='checkbox'?elm.checked:elm.value;
+      mutateRules(()=>{rules[i][f]=val;if(f==='proto'&&val==='icmp')rules[i].port='any';if(f==='srcType'||f==='dstType')rules[i][f.replace('Type','')]='';});});
+  });
+  $('rulesBody').querySelectorAll('input.mono[data-rf]').forEach(inp=>{
+    inp.addEventListener('focus',beginChange);
+    inp.addEventListener('input',()=>{const i=+inp.getAttribute('data-ri'),f=inp.getAttribute('data-rf');rules[i][f]=inp.value;scheduleSave();});
+    inp.addEventListener('change',()=>{commitChange();refreshMissions();});
+  });
+  const run=$('tRun');if(run)run.addEventListener('click',()=>{
+    const s=$('tSrc').value,dt=$('tDst').value,svc=svcByKey($('tSvc').value);
+    const sd=project.devices[s],dd=project.devices[dt],res=$('tResult');if(!sd||!dd){res.textContent='—';return;}
+    const pkt={proto:svc.proto,dport:svc.port,service:svc.key,srcIp:sd.ip,dstIp:dd.ip,srcZone:sd.zone,dstZone:dd.zone};
+    const v=evalFirewall(fw,pkt);
+    const onPath=(()=>{const p=findPath(s,dt,false);return !!(p&&p.nodes.includes(currentFwId));})();
+    res.innerHTML=`<span style="color:${v.action==='deny'?'var(--bad)':'var(--good)'};font-weight:700">${v.action==='deny'?'✗ DENEGADO':'✓ PERMITIDO'}</span> · ${svc.label} · ${v.rule?('coincide regla #'+(v.idx+1)):'política por defecto'}${onPath?'':' · <span style="color:var(--warn)">(este firewall no está en la ruta)</span>'}`;
+  });
 }
 function diffClass(d){return{easy:'b-easy',med:'b-med',hard:'b-hard',exp:'b-exp'}[d];}
 function diffLabel(d){return{easy:'FÁCIL',med:'MEDIO',hard:'AVANZADO',exp:'EXPERTO'}[d];}
