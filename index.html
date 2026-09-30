@@ -871,6 +871,20 @@ function recommend(){
   const risky=Object.values(devs).filter(d=>['camera','iot','plc','pos'].includes(d.type));
   if(risky.length&&risky.every(d=>!d.vlan))
     add(null,'Aísla cámaras/IoT/OT/TPV en su propia VLAN o zona','Son dispositivos poco seguros; segmentarlos evita que un fallo comprometa toda la red.');
+  // Public/exposed servers should sit in a DMZ zone
+  for(const id in devs){const d=devs[id];if(!SERVER_TYPES.includes(d.type)||(d.zone||'')==='DMZ')continue;
+    const nb=neighborsOf(id).map(x=>devs[x]).filter(Boolean);
+    const exposed=nb.some(o=>o.type==='internet')||nb.some(o=>o.type==='firewall'&&fwTouchesInternet(o.id))
+      ||nb.some(o=>['switch','l3switch'].includes(o.type)&&neighborsOf(o.id).some(x=>devs[x]&&devs[x].type==='firewall'&&fwTouchesInternet(x)));
+    if(exposed)add(id,`Coloca «${d.name}» en una DMZ (zona DMZ)`,'Un servidor accesible desde internet va en una DMZ, separada de la LAN por el firewall.');}
+  // DHCP recommended when there are many endpoints
+  const endpoints=Object.values(devs).filter(d=>TYPES[d.type].host&&!SERVER_TYPES.includes(d.type)).length;
+  if(endpoints>=10&&!devsByType('dhcp').length)
+    add(null,'Añade un servidor DHCP para asignar IPs automáticamente','Con muchos equipos, poner las IPs a mano es lento y propenso a errores; el DHCP lo automatiza.');
+  // Core redundancy for large networks (avoid single point of failure)
+  const total=Object.keys(devs).length,servers=Object.values(devs).filter(d=>SERVER_TYPES.includes(d.type)).length;
+  if(total>=16&&servers>=2&&(countType('router')+countType('l3switch'))===1)
+    add(null,'Añade un segundo router/switch L3 de núcleo (redundancia)','En redes grandes, un único equipo de núcleo es un punto único de fallo (SPOF): si cae, cae toda la red.');
   return out;
 }
 // ── L3-aware deliverability (only enforced in realistic mode) ──
