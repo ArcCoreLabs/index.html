@@ -350,6 +350,12 @@ input,select,textarea{font-family:inherit;font-size:13px}
 .diag-row:last-child{border-bottom:none}
 .diag-row:hover{color:var(--text)}
 .diag-row.err b{color:var(--bad)}.diag-row.warn b{color:var(--warn)}
+.rec-row{display:flex;gap:8px;align-items:flex-start;padding:8px 4px;border-bottom:1px solid var(--border)}
+.rec-row:last-child{border-bottom:none}
+.rec-row[data-diag]{cursor:pointer}
+.rec-row[data-diag]:hover .rec-msg{color:var(--accent)}
+.rec-msg{font-size:12px;font-weight:600;line-height:1.35}
+.rec-why{font-size:11px;color:var(--muted);line-height:1.4;margin-top:2px}
 .warnbadge circle{fill:var(--warn);stroke:var(--bg);stroke-width:1.5}
 .warnbadge.err circle{fill:var(--bad)}
 .warnbadge text{fill:#0b1220;font-size:11px;font-weight:900;font-family:var(--ui)}
@@ -833,6 +839,40 @@ function diagnose(){
   return issues;}
 function diagByDev(){const m={};diagnose().forEach(i=>{(m[i.devId]=m[i.devId]||[]).push(i);});return m;}
 let diagCache={};
+// ── Best-practice advisor (topology/architecture recommendations) ──
+const SERVER_TYPES=['server','dns','dhcp','dc','siem','radius','monitor','backup','nas'];
+const EDGE_TYPES=['internet','firewall','modem','ont']; // colgar hosts directo aquí es mala práctica (el router sí puede tener switch integrado)
+const MGMT_TYPES=['siem','monitor','backup','dc','radius'];
+const ACCESS_TYPES=['switch','l3switch','ap','repeater','wlc'];
+function fwTouchesInternet(id){return neighborsOf(id).some(x=>project.devices[x]&&project.devices[x].type==='internet');}
+function recommend(){
+  const out=[],devs=project.devices,add=(devId,msg,why)=>out.push({devId,msg,why});const seenPair={};
+  for(const id in devs){const d=devs[id],t=TYPES[d.type];if(!t)continue;
+    const nb=neighborsOf(id).map(x=>devs[x]).filter(Boolean);
+    if(nb.length===0&&d.type!=='internet'){add(id,`«${d.name}» no está conectado a nada`,'Todo dispositivo necesita al menos un enlace para participar en la red.');continue;}
+    if(t.host){
+      const edgeNb=nb.find(o=>EDGE_TYPES.includes(o.type));
+      if(edgeNb){const isSrv=SERVER_TYPES.includes(d.type);
+        add(id,`Conecta «${d.name}» a un switch, no directamente a «${edgeNb.name}»`,
+          isSrv?'Los servidores cuelgan de un switch (capa de acceso/servidores), no del router, firewall o internet.'
+               :'Los equipos finales van a un switch o AP, nunca directos al router o firewall.');}
+      nb.filter(o=>TYPES[o.type].host).forEach(o=>{const key=[id,o.id].sort().join('|');if(seenPair[key])return;seenPair[key]=1;
+        add(id,`«${d.name}» está conectado directamente a «${o.name}» (otro equipo)`,'Dos equipos/servidores no se conectan entre sí directamente: ambos deben ir a un switch.');});
+    }
+    if(MGMT_TYPES.includes(d.type)){
+      const perimeter=nb.some(o=>o.type==='internet')||nb.some(o=>o.type==='firewall'&&fwTouchesInternet(o.id));
+      if(perimeter)add(id,`Mueve «${d.name}» a la red de gestión interna (está en el perímetro)`,'SIEM, monitorización, AD o RADIUS son sistemas internos sensibles: no se colocan en el borde junto a internet.');
+    }
+    if(d.type==='ap'&&!nb.some(o=>['switch','l3switch','router'].includes(o.type)))
+      add(id,`Conecta el AP «${d.name}» a un switch o router (uplink)`,'Un punto de acceso necesita enlace cableado; los clientes wifi se conectan a él, no al revés.');
+  }
+  if(devsByType('internet').length&&Object.values(devs).some(d=>SERVER_TYPES.includes(d.type))&&!internetSegmentedByFirewall())
+    add(null,'Coloca un firewall entre internet y tus servidores/red interna','Con servidores en juego, sin cortafuegos perimetral la red interna queda expuesta directamente a internet.');
+  const risky=Object.values(devs).filter(d=>['camera','iot','plc','pos'].includes(d.type));
+  if(risky.length&&risky.every(d=>!d.vlan))
+    add(null,'Aísla cámaras/IoT/OT/TPV en su propia VLAN o zona','Son dispositivos poco seguros; segmentarlos evita que un fallo comprometa toda la red.');
+  return out;
+}
 // ── L3-aware deliverability (only enforced in realistic mode) ──
 // Deliverability essentials (the "gateway in subnet" nicety stays a diagnostic, not a drop)
 function deliverable(sd,dd){
@@ -1219,7 +1259,18 @@ function overviewHTML(){
     </div></div>
   <div class="ov-card"><div class="ov-title">// COMPOSICIÓN</div>${bars||'<div class="insp-empty" style="padding:10px">Añade dispositivos</div>'}</div>
   ${diagOverviewHTML()}
+  ${recsOverviewHTML()}
   ${devs.length?'':'<div class="insp-empty">Toca un dispositivo en el panel izquierdo para empezar, o carga una <b>plantilla</b>.</div>'}`;
+}
+function recsOverviewHTML(){
+  const recs=recommend();
+  if(!Object.values(project.devices).length)return '';
+  if(!recs.length)return `<div class="ov-card" style="border-color:rgba(56,189,248,.28)"><div class="ov-title">// RECOMENDACIONES</div><div style="font-size:12px;color:var(--accent);margin-top:6px">✓ Tu diseño sigue las buenas prácticas 👌</div></div>`;
+  const rows=recs.slice(0,12).map(r=>`<div class="rec-row"${r.devId?` data-diag="${r.devId}"`:''}>
+      <span>💡</span><div><div class="rec-msg">${esc(r.msg)}</div><div class="rec-why">${esc(r.why)}</div></div></div>`).join('');
+  return `<div class="ov-card" style="border-color:rgba(56,189,248,.3)">
+    <div class="ov-title">// RECOMENDACIONES · ${recs.length}</div>${rows}
+    ${recs.length>12?`<div style="font-size:11px;color:var(--muted2);margin-top:6px">… y ${recs.length-12} más</div>`:''}</div>`;
 }
 function diagOverviewHTML(){
   const issues=diagnose();
@@ -1612,9 +1663,11 @@ function updateStats(){
       return n?`<div class="chip" id="healthChip" style="cursor:pointer"><span class="dot" style="background:var(--warn)"></span><span class="cv" style="color:var(--warn)">${n}</span><span class="cl">avisos</span></div>`
       :`<div class="chip"><span class="dot" style="background:var(--good)"></span><span class="cl">red OK</span></div>`;})()}
     ${settings.realistic?'<div class="chip"><span class="dot" style="background:var(--accent2)"></span><span class="cl">L3 real</span></div>':''}
+    ${(()=>{const rn=devs.length?recommend().length:0;return rn?`<div class="chip" id="recChip" style="cursor:pointer"><span class="cv" style="color:var(--accent)">💡 ${rn}</span><span class="cl">ideas</span></div>`:'';})()}
     ${sim.sent?`<div class="chip"><span class="cv" style="color:${rate>90?'var(--good)':rate>60?'var(--warn)':'var(--bad)'}">${rate}%</span><span class="cl">entrega</span></div>
     <div class="chip"><span class="cv">${sim.sent}</span><span class="cl">paq.</span></div>`:''}`;
   const hc=$('healthChip');if(hc)hc.addEventListener('click',()=>{select(null);if(isMobile())openPanel('inspector');});
+  const rc=$('recChip');if(rc)rc.addEventListener('click',()=>{select(null);if(isMobile())openPanel('inspector');});
   if(selected===null&&$('inspTitle').textContent==='RESUMEN')$('inspectorBody').innerHTML=overviewHTML();
 }
 
