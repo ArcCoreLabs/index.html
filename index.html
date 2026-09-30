@@ -351,6 +351,11 @@ input,select,textarea{font-family:inherit;font-size:13px}
 .warnbadge circle{fill:var(--warn);stroke:var(--bg);stroke-width:1.5}
 .warnbadge.err circle{fill:var(--bad)}
 .warnbadge text{fill:#0b1220;font-size:11px;font-weight:900;font-family:var(--ui)}
+.pf-row{display:grid;grid-template-columns:52px 60px 1fr 48px 30px;gap:5px;margin-bottom:6px;align-items:center}
+.pf-row input,.pf-row select{background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:6px 7px;color:var(--text);font-size:11px;width:100%;min-width:0}
+.pf-row input:focus,.pf-row select:focus{outline:none;border-color:var(--accent)}
+.pf-row button{width:28px;height:28px;border-radius:7px;background:var(--panel);border:1px solid var(--border);color:var(--muted);font-size:12px}
+.pf-row button:hover{color:var(--bad);border-color:rgba(244,63,94,.4)}
 .kbd{font-family:var(--mono);font-size:11px;background:var(--panel3);border:1px solid var(--border);
   border-radius:5px;padding:1px 6px;color:var(--text)}
 
@@ -526,6 +531,7 @@ input,select,textarea{font-family:inherit;font-size:13px}
         <li>Marca un dispositivo o enlace como <b>caído</b>, o ajusta <b>latencia</b> y <b>pérdida</b> de paquetes en un enlace para simular fallas.</li>
       </ul></div>
       <div class="help-sec"><h3>5 · Firewall con reglas</h3><p>Selecciona un <b>firewall</b> y pulsa <b>Editar reglas</b>. Cada regla tiene acción (permitir/denegar), protocolo, origen y destino (por <b>IP</b>, <b>subred</b> o <b>zona</b>) y puerto. Se evalúan de arriba a abajo y gana la primera que coincide; si ninguna coincide, se aplica la <b>política por defecto</b>. Asigna <b>zonas</b> (LAN/DMZ/WAN) a los dispositivos para escribir reglas potentes, y usa el <b>probador</b> para ver el veredicto al instante. Los servicios (HTTPS, SSH, DNS…) definen el puerto del tráfico en pings y simulación.</p></div>
+      <div class="help-sec"><h3>🔬 Simulación avanzada (L3)</h3><p>Activa <b>Modo realista L3</b> (icono de onda en la barra): con él, una mala configuración hace fallar el tráfico de verdad. Cada host muestra su <b>subred</b> calculada y el <b>Diagnóstico</b> avisa de IP duplicada, gateway fuera de subred o subredes mezcladas. Desde un equipo puedes lanzar <b>flujos</b> (DHCP, ARP, DNS, TCP), <b>Inspeccionar capas</b> (ver el paquete salto a salto: L2/L3/L4/L7, firewall y NAT) y hacer <b>Traceroute</b>. El <b>servidor DHCP</b> reparte IPs a su segmento; en routers/firewall puedes activar <b>NAT</b> y publicar servicios con <b>port-forwarding</b>. Asigna una <b>VLAN</b> a los equipos: dos VLANs distintas solo se comunican a través de un router o switch L3.</p></div>
       <div class="help-sec"><h3>6 · Aprende con misiones</h3><p>En <b>Misiones</b> elige un reto (colegio, universidad, banco, «Asegura la DMZ»…). Los objetivos se validan en vivo mientras construyes y configuras.</p></div>
       <div class="help-sec"><h3>📖 Diccionario</h3><p>¿No sabes qué hace un dispositivo? Abre el <b>Diccionario</b> en la barra superior, pulsa la <b>i</b> de cada icono de la paleta, o el <b>ⓘ</b> del inspector: te dice qué es, en qué capa trabaja y las diferencias clave (por ejemplo, switch capa 2 vs capa 3, IDS vs IPS, firewall vs WAF).</p></div>
       <div class="help-sec"><h3>Sincronización</h3><p>Todo se guarda automáticamente en este dispositivo y funciona sin conexión. Usa <b>Exportar → JSON</b> para llevar un proyecto a otro dispositivo e <b>Importar</b> allí.</p></div>
@@ -776,7 +782,8 @@ function diagnose(){
     l2Segment(id).forEach(oid=>{if(oid===id)return;const o=devs[oid];const ot=TYPES[o.type];
       if(!ot||!ot.host||!o.ip||!o.mask||maskToBits(o.mask)===null)return;
       const key=[id,oid].sort().join('|');if(checked[key])return;checked[key]=1;
-      if(!sameSubnet(d.ip,d.mask,o.ip,o.mask))add(id,'warn','Mismo segmento que «'+o.name+'» pero en otra subred (no se verán)');});
+      if(!sameSubnet(d.ip,d.mask,o.ip,o.mask))add(id,'warn','Mismo segmento que «'+o.name+'» pero en otra subred (no se verán)');
+      else if(String(d.vlan||'')!==String(o.vlan||''))add(id,'warn','Misma subred que «'+o.name+'» pero VLAN distinta (necesita inter-VLAN)');});
   }
   return issues;}
 function diagByDev(){const m={};diagnose().forEach(i=>{(m[i.devId]=m[i.devId]||[]).push(i);});return m;}
@@ -791,9 +798,12 @@ function deliverable(sd,dd){
     if(!sd.gateway)return{ok:false,reason:'sin puerta de enlace para salir a internet'};
     return{ok:true,nat:true};}
   if(!sd.ip||!dd.ip||ipToInt(sd.ip)===null||ipToInt(dd.ip)===null)return{ok:true};
-  if(sMask&&maskToBits(sMask)!==null&&sameSubnet(sd.ip,sMask,dd.ip,dd.mask))return{ok:true};
+  const sv=String(sd.vlan||''),dv=String(dd.vlan||'');
+  if(sMask&&maskToBits(sMask)!==null&&sameSubnet(sd.ip,sMask,dd.ip,dd.mask)){
+    if(sv===dv)return{ok:true};
+    return{ok:true,needL3:true,why:'VLAN '+(sv||'1')+' ≠ '+(dv||'1')+': requiere enrutamiento inter-VLAN (router o switch L3)'};}
   if(!sd.gateway)return{ok:false,reason:'destino en otra subred y sin gateway'};
-  return{ok:true,needL3:true};}
+  return{ok:true,needL3:true,why:'destino en otra subred: requiere router/switch L3 en la ruta'};}
 function matchAddr(type,val,ip,zone){
   if(!type||type==='any')return true;
   if(type==='ip')   return ipToInt(val)!==null&&ipToInt(val)===ipToInt(ip);
@@ -1180,6 +1190,15 @@ function subnetLine(d){
   const r=usableRange(d.ip,d.mask),cd=cidrOf(d.ip,d.mask);if(!r||!cd)return '';
   return `<div class="subnet-info mono">Subred ${cd} · usables ${r.first}–${r.last}${r.broadcast?(' · bcast '+r.broadcast):''}</div>`;
 }
+function pforwardHTML(d){const a=d.pforward||[];
+  if(!a.length)return '<div class="mono" style="font-size:11px;color:var(--muted2)">Sin publicaciones. Internet → puerto → host interno.</div>';
+  return a.map((r,i)=>`<div class="pf-row" data-i="${i}">
+    <input class="mono" data-pf="extPort" data-i="${i}" value="${esc(r.extPort||'')}" placeholder="ext" title="Puerto externo">
+    <select data-pf="proto" data-i="${i}"><option value="tcp" ${r.proto!=='udp'?'selected':''}>TCP</option><option value="udp" ${r.proto==='udp'?'selected':''}>UDP</option></select>
+    <input class="mono" data-pf="toIp" data-i="${i}" value="${esc(r.toIp||'')}" placeholder="→ IP interna" title="IP interna">
+    <input class="mono" data-pf="toPort" data-i="${i}" value="${esc(r.toPort||'')}" placeholder="pto" title="Puerto interno">
+    <button data-pfdel="${i}" class="danger" title="Eliminar">🗑</button></div>`).join('');
+}
 function deviceInspectorHTML(d){
   const t=TYPES[d.type];
   const hostOpts=Object.values(project.devices).filter(x=>x.id!==d.id&&TYPES[x.type].host)
@@ -1214,6 +1233,14 @@ function deviceInspectorHTML(d){
      <button class="ibtn go" id="fEditRules" style="width:100%;margin-top:10px">⚙ Editar reglas del firewall</button>
      <div class="ov-title" style="margin:12px 0 5px">// LOG EN VIVO</div>
      <div class="console" id="fwLog">${fwLogHTML(d.id)}</div>
+   </div>`:''}
+  ${(t.routes||t.fw)?`<div class="ov-card" style="padding:11px;margin-top:2px">
+     <div class="ov-title">// NAT / PUBLICACIÓN</div>
+     <div class="toggle-row" style="margin:8px 0 0"><span class="tl">NAT (salida a internet)</span>
+       <div class="switch ${d.nat!==false?'on':''}" id="fNat"></div></div>
+     <div class="ov-title" style="margin:12px 0 5px">// PORT-FORWARDING (DNAT)</div>
+     <div id="pfList">${pforwardHTML(d)}</div>
+     <button class="ibtn" id="pfAdd" style="width:100%;margin-top:8px;font-size:11px">➕ Publicar un servicio</button>
    </div>`:''}
   ${d.type==='dhcp'?`<div class="ov-card" style="padding:11px;margin-top:2px">
      <div class="ov-title">// SERVIDOR DHCP</div>
@@ -1262,7 +1289,17 @@ function bindDeviceInspector(d){
   on('dhAssign','click',()=>runDhcpAssign(d.id));
   on('inspectBtn','click',()=>{const tg=$('pingTarget').value;if(!tg)return;runInspect(d.id,tg,$('pingSvc').value);});
   on('traceBtn','click',()=>{const tg=$('pingTarget').value;if(!tg)return;runTraceroute(d.id,tg);});
-  on('flowBtn','click',()=>{const tg=$('pingTarget').value;runFlow(d.id,tg,$('flowSel').value);});
+  on('flowBtn','click',()=>{const tg=$('pingTarget').value;runFlow(d.id,$('flowSel').value,tg);});
+  on('fNat','click',()=>{beginChange();d.nat=(d.nat===false);commitChange();scheduleSave();refreshInspector();});
+  on('pfAdd','click',()=>{beginChange();(d.pforward=d.pforward||[]).push({extPort:'',proto:'tcp',toIp:'',toPort:''});commitChange();refreshInspector();});
+  const pfList=$('pfList');
+  if(pfList){
+    pfList.querySelectorAll('[data-pfdel]').forEach(btn=>btn.addEventListener('click',()=>{const i=+btn.getAttribute('data-pfdel');beginChange();d.pforward.splice(i,1);commitChange();refreshInspector();}));
+    pfList.querySelectorAll('select[data-pf]').forEach(s=>s.addEventListener('change',()=>{beginChange();d.pforward[+s.getAttribute('data-i')][s.getAttribute('data-pf')]=s.value;commitChange();scheduleSave();}));
+    pfList.querySelectorAll('input[data-pf]').forEach(inp=>{inp.addEventListener('focus',beginChange);
+      inp.addEventListener('input',()=>{d.pforward[+inp.getAttribute('data-i')][inp.getAttribute('data-pf')]=inp.value;scheduleSave();});
+      inp.addEventListener('change',()=>commitChange());});
+  }
   on('fZone','change',()=>{beginChange();d.zone=$('fZone').value;commitChange();scheduleSave();refreshMissions();afterMutate();});
   on('fDefPol','click',()=>{beginChange();d.defaultPolicy=(d.defaultPolicy==='deny'?'allow':'deny');commitChange();afterMutate();refreshMissions();});
   on('fEditRules','click',()=>openRulesModal(d.id));
@@ -1328,7 +1365,7 @@ function launchPacket(src,dst,opts={}){
   // L3 deliverability (only enforced in realistic mode)
   if(settings.realistic&&!opts.skipL3){
     const del=deliverable(sd,dd);let lr=del.ok?'':del.reason;
-    if(del.ok&&del.needL3&&!path.nodes.slice(1,-1).some(id=>isL3(project.devices[id]))){del.ok=false;lr='destino en otra subred y no hay router/switch L3 en la ruta';}
+    if(del.ok&&del.needL3&&!path.nodes.slice(1,-1).some(id=>isL3(project.devices[id]))){del.ok=false;lr=del.why||'destino en otra subred y no hay router/switch L3 en la ruta';}
     if(del.ok&&del.nat&&!path.nodes.some(id=>natCapable(project.devices[id]))){del.ok=false;lr='no hay router/NAT de salida a internet';}
     if(!del.ok){sim.sent++;sim.dropped++;if(sd)flash(sd.x,sd.y,'#f43f5e');updateStats();if(cb)cb({ok:false,reason:lr});return;}
   }
@@ -1410,9 +1447,10 @@ function traceHops(src,dst,serviceKey){
   const path=findPath(src,dst,true);
   if(!path){push('er','✗ Sin ruta física entre los equipos');return out;}
   if(settings.realistic){const del=deliverable(sd,dd);
-    if(del.ok&&del.needL3&&!path.nodes.slice(1,-1).some(id=>isL3(project.devices[id])))push('er','✗ L3: distinta subred y sin router/switch L3 en la ruta');
+    if(del.ok&&del.needL3&&!path.nodes.slice(1,-1).some(id=>isL3(project.devices[id])))push('er','✗ L3: '+(del.why||'distinta subred sin router/switch L3'));
     else if(del.ok&&del.nat&&!path.nodes.some(id=>natCapable(project.devices[id])))push('er','✗ L3: sin router/NAT de salida');
-    else if(!del.ok)push('er','✗ L3: '+del.reason);}
+    else if(!del.ok)push('er','✗ L3: '+del.reason);
+    else if(del.needL3)push('in','L3: enrutamiento necesario ('+(del.why||'inter-subred')+')');}
   let cum=0;
   for(let i=0;i<path.nodes.length;i++){const id=path.nodes[i],d=project.devices[id],t=TYPES[d.type]||{};
     if(i>0)cum+=(project.links[path.links[i-1]]?.latency||0);
@@ -1421,6 +1459,7 @@ function traceHops(src,dst,serviceKey){
     if(t.fw){const v=evalFirewall(d,{proto:svc.proto,dport:svc.port,srcIp:sd.ip,dstIp:dd.ip,srcZone:sd.zone,dstZone:dd.zone});
       extra+=v.action==='deny'?' · 🔥 DENY':' · 🔥 allow';}
     if(natCapable(d)&&dd.type==='internet'&&role==='enruta L3')extra+=` · NAT ${sd.ip||''}→pública`;
+    if((d.pforward||[]).length&&sd.type==='internet'){const pf=d.pforward.find(x=>String(x.extPort)===String(svc.port));if(pf)extra+=` · DNAT ${pf.extPort}→${pf.toIp}:${pf.toPort||pf.extPort}`;}
     push(i===path.nodes.length-1?'ok':'',`salto ${i}: ${d.name} [${role}]`+(i>0?` +${project.links[path.links[i-1]]?.latency||0}ms=${cum}ms`:'')+extra);}
   push('ok',`Total ≈ ${cum}ms`);
   return out;
