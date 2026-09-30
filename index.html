@@ -337,6 +337,20 @@ input,select,textarea{font-family:inherit;font-size:13px}
 .dict-body b{color:var(--text)}
 .dict-cmp{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:8px 10px;margin-top:9px!important}
 @media(max-width:560px){.dict-body{padding-left:12px}}
+
+/* L3 subnet + diagnostics */
+.subnet-info{font-size:10.5px;color:var(--muted);background:var(--panel2);border:1px solid var(--border);border-radius:7px;padding:6px 9px;margin:0 0 11px}
+.diag-box{margin:0 0 11px;display:flex;flex-direction:column;gap:5px}
+.diag-item{font-size:11px;border-radius:7px;padding:6px 9px;line-height:1.4}
+.diag-item.warn{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:var(--warn)}
+.diag-item.err{background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.3);color:var(--bad)}
+.diag-row{font-size:11.5px;padding:6px 4px;border-bottom:1px solid var(--border);line-height:1.4;cursor:pointer;display:flex;gap:6px;align-items:baseline}
+.diag-row:last-child{border-bottom:none}
+.diag-row:hover{color:var(--text)}
+.diag-row.err b{color:var(--bad)}.diag-row.warn b{color:var(--warn)}
+.warnbadge circle{fill:var(--warn);stroke:var(--bg);stroke-width:1.5}
+.warnbadge.err circle{fill:var(--bad)}
+.warnbadge text{fill:#0b1220;font-size:11px;font-weight:900;font-family:var(--ui)}
 .kbd{font-family:var(--mono);font-size:11px;background:var(--panel3);border:1px solid var(--border);
   border-radius:5px;padding:1px 6px;color:var(--text)}
 
@@ -413,6 +427,7 @@ input,select,textarea{font-family:inherit;font-size:13px}
       <button class="tbtn" id="modeDelete" title="Eliminar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
       <div class="tsep"></div>
       <button class="tbtn sim" id="btnSim" title="Simular tráfico en vivo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18l15-9z"/></svg></button>
+      <button class="tbtn" id="btnL3" title="Modo realista L3 (la configuración afecta la entrega)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></button>
       <div class="tsep"></div>
       <button class="tbtn" id="btnZoomIn" title="Acercar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button>
       <button class="tbtn" id="btnZoomOut" title="Alejar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg></button>
@@ -711,6 +726,74 @@ function ipToInt(ip){const p=String(ip||'').trim().split('.');if(p.length!==4)re
 function inCidr(ip,cidr){if(!cidr)return false;const parts=String(cidr).trim().split('/');const bits=parts[1]===undefined?32:+parts[1];
   const a=ipToInt(ip),b=ipToInt(parts[0]);if(a===null||b===null||isNaN(bits)||bits<0||bits>32)return false;
   const mask=bits===0?0:(0xffffffff<<(32-bits))>>>0;return ((a&mask)>>>0)===((b&mask)>>>0);}
+// ── L3 subnet math ──
+function maskToBits(mask){if(mask==null)return null;mask=String(mask).trim();if(!mask)return null;
+  if(mask[0]==='/')mask=mask.slice(1);
+  if(/^\d{1,2}$/.test(mask)){const b=+mask;return (b>=0&&b<=32)?b:null;}
+  const n=ipToInt(mask);if(n===null)return null;
+  let bits=0,seen0=false;for(let i=31;i>=0;i--){const bit=(n>>>i)&1;if(bit){if(seen0)return null;bits++;}else seen0=true;}
+  return bits;}
+function intToIp(n){return [(n>>>24)&255,(n>>>16)&255,(n>>>8)&255,n&255].join('.');}
+function netAddr(ip,mask){const a=ipToInt(ip),b=maskToBits(mask);if(a===null||b===null)return null;
+  const m=b===0?0:(0xffffffff<<(32-b))>>>0;return (a&m)>>>0;}
+function broadcastInt(ip,mask){const net=netAddr(ip,mask),b=maskToBits(mask);if(net===null||b===null)return null;
+  const host=b===32?0:(0xffffffff>>>b);return (net|host)>>>0;}
+function cidrOf(ip,mask){const net=netAddr(ip,mask),b=maskToBits(mask);if(net===null)return null;return intToIp(net)+'/'+b;}
+function usableRange(ip,mask){const net=netAddr(ip,mask),bc=broadcastInt(ip,mask),b=maskToBits(mask);
+  if(net===null)return null;
+  if(b>=31)return {first:intToIp(net),last:intToIp(bc),count:(b===32?1:2)};
+  return {first:intToIp((net+1)>>>0),last:intToIp((bc-1)>>>0),broadcast:intToIp(bc),count:(bc-net-1)};}
+function sameSubnet(ipA,maskA,ipB,maskB){const na=netAddr(ipA,maskA),nb=netAddr(ipB,maskB||maskA);return na!==null&&nb!==null&&na===nb;}
+function isL3(dev){const t=dev&&TYPES[dev.type];return !!(t&&(t.routes||t.fw));}
+function natCapable(dev){const t=dev&&TYPES[dev.type];return !!(t&&(t.routes||t.fw)&&dev.nat!==false);}
+// L2 broadcast domain: devices reachable without crossing an L3 boundary (VLAN split added in block B)
+function l2Segment(startId){
+  const seen={},out=[];if(!project.devices[startId])return out;const stack=[startId];seen[startId]=1;
+  while(stack.length){const id=stack.pop();const d=project.devices[id];if(!d)continue;out.push(id);
+    if(id!==startId&&isL3(d))continue; // include L3 node as boundary but don't cross it
+    for(const lid in project.links){const l=project.links[lid];let to=null;
+      if(l.a===id)to=l.b;else if(l.b===id)to=l.a;else continue;
+      if(seen[to]||!project.devices[to])continue;seen[to]=1;stack.push(to);}}
+  return out;}
+// ── Network diagnostics ──
+function diagnose(){
+  const issues=[],devs=project.devices,add=(devId,sev,msg)=>issues.push({devId,sev,msg});
+  const byIp={};
+  for(const id in devs){const d=devs[id];if(!d.ip)continue;
+    if(ipToInt(d.ip)===null){add(id,'err','IP inválida: '+d.ip);continue;}
+    (byIp[d.ip]=byIp[d.ip]||[]).push(id);}
+  for(const ip in byIp){if(byIp[ip].length>1)byIp[ip].forEach(id=>add(id,'err','IP duplicada ('+ip+')'));}
+  for(const id in devs){const d=devs[id],t=TYPES[d.type];if(!t||!t.host)continue;
+    if(d.mask&&maskToBits(d.mask)===null)add(id,'err','Máscara inválida: '+d.mask);
+    if(d.ip&&ipToInt(d.ip)!==null){
+      if(!d.gateway)add(id,'warn','Sin puerta de enlace: no saldrá de su subred');
+      else if(ipToInt(d.gateway)===null)add(id,'err','Gateway inválido: '+d.gateway);
+      else if(d.mask&&maskToBits(d.mask)!==null&&!sameSubnet(d.ip,d.mask,d.gateway,d.mask))add(id,'warn','Gateway fuera de la subred');
+    }
+  }
+  const checked={};
+  for(const id in devs){const d=devs[id],t=TYPES[d.type];if(!t||!t.host||!d.ip||!d.mask||maskToBits(d.mask)===null)continue;
+    l2Segment(id).forEach(oid=>{if(oid===id)return;const o=devs[oid];const ot=TYPES[o.type];
+      if(!ot||!ot.host||!o.ip||!o.mask||maskToBits(o.mask)===null)return;
+      const key=[id,oid].sort().join('|');if(checked[key])return;checked[key]=1;
+      if(!sameSubnet(d.ip,d.mask,o.ip,o.mask))add(id,'warn','Mismo segmento que «'+o.name+'» pero en otra subred (no se verán)');});
+  }
+  return issues;}
+function diagByDev(){const m={};diagnose().forEach(i=>{(m[i.devId]=m[i.devId]||[]).push(i);});return m;}
+let diagCache={};
+// ── L3-aware deliverability (only enforced in realistic mode) ──
+// Deliverability essentials (the "gateway in subnet" nicety stays a diagnostic, not a drop)
+function deliverable(sd,dd){
+  if(!sd||!dd)return{ok:false,reason:'dispositivo inexistente'};
+  const sMask=sd.mask;
+  if(dd.type==='internet'||(TYPES[dd.type]&&TYPES[dd.type].wan)){
+    if(!sd.ip)return{ok:true};
+    if(!sd.gateway)return{ok:false,reason:'sin puerta de enlace para salir a internet'};
+    return{ok:true,nat:true};}
+  if(!sd.ip||!dd.ip||ipToInt(sd.ip)===null||ipToInt(dd.ip)===null)return{ok:true};
+  if(sMask&&maskToBits(sMask)!==null&&sameSubnet(sd.ip,sMask,dd.ip,dd.mask))return{ok:true};
+  if(!sd.gateway)return{ok:false,reason:'destino en otra subred y sin gateway'};
+  return{ok:true,needL3:true};}
 function matchAddr(type,val,ip,zone){
   if(!type||type==='any')return true;
   if(type==='ip')   return ipToInt(val)!==null&&ipToInt(val)===ipToInt(ip);
@@ -761,11 +844,14 @@ let pending=null;                 // connect first node id
 let undoStack=[],redoStack=[];
 let sim={on:false,timer:null,sent:0,delivered:0,dropped:0,latSum:0};
 let counters={};                  // per-type naming counters (transient)
+let settings={realistic:true};    // "Modo realista L3"
 
 /* ---------- Persistence ---------- */
 function loadStore(){
   try{store=JSON.parse(localStorage.getItem(LS))||store;}catch(e){}
   if(!store.projects)store.projects={};
+  if(!store.settings)store.settings={realistic:true};
+  settings=store.settings;
 }
 let saveT=null;
 function scheduleSave(){clearTimeout(saveT);saveT=setTimeout(commitSave,400);}
@@ -793,11 +879,16 @@ function normalizeProject(p){
     if(d.ip===undefined)d.ip='';if(d.notes===undefined)d.notes='';
     if(typeof d.x!=='number')d.x=0;if(typeof d.y!=='number')d.y=0;
     if(d.zone===undefined)d.zone=(d.type==='internet'?'WAN':'');
-    if(TYPES[d.type]&&TYPES[d.type].fw){
+    if(d.vlan===undefined)d.vlan='';
+    const t=TYPES[d.type];
+    if(t&&t.fw){
       if(d.defaultPolicy===undefined)d.defaultPolicy=(d.policy==='block'?'deny':'allow');
       if(!Array.isArray(d.rules))d.rules=[];
       delete d.policy;
     }
+    if(t&&(t.routes||t.fw)){ if(d.nat===undefined)d.nat=true; if(!Array.isArray(d.pforward))d.pforward=[]; }
+    if(d.type==='dhcp'){ if(d.dhcpNet===undefined)d.dhcpNet=''; if(d.dhcpStart===undefined)d.dhcpStart='';
+      if(d.dhcpEnd===undefined)d.dhcpEnd=''; if(d.dhcpGw===undefined)d.dhcpGw=''; if(d.dhcpDns===undefined)d.dhcpDns=''; }
   }
   return p;
 }
@@ -906,6 +997,7 @@ function drawGrid(){
 function nodeCenter(d){return{x:d.x,y:d.y};}
 function renderAll(){
   if(!gNodes)buildLayers();
+  diagCache=diagByDev();
   drawGrid();
   // links
   gLinks.innerHTML='';for(const k in linkEls)delete linkEls[k];
@@ -931,6 +1023,12 @@ function renderNode(id){
   const ig=el('g',{class:'icon',transform:'translate(-12,-12)'});ig.innerHTML=GLYPHS[d.type]||'';g.appendChild(ig);
   // status dot
   g.appendChild(el('circle',{class:'status '+(d.status==='down'?'down':'up'),cx:R-6,cy:-R+6,r:5}));
+  // diagnostics warning badge
+  const dg=diagCache[id];
+  if(dg&&dg.length){const sev=dg.some(x=>x.sev==='err')?'err':'warn';
+    const wg=el('g',{class:'warnbadge '+sev,transform:`translate(${-R+2},${-R-2})`});
+    wg.innerHTML='<circle r="8" cx="0" cy="0"></circle><text x="0" y="3.5" text-anchor="middle">!</text>';
+    g.appendChild(wg);}
   // label
   const lbl=el('text',{class:'nlabel',y:R+15});lbl.textContent=trunc(d.name,14);g.appendChild(lbl);
   if(d.ip){const ip=el('text',{class:'nip',y:R+27});ip.textContent=d.ip;g.appendChild(ip);}
@@ -1065,12 +1163,28 @@ function overviewHTML(){
       <div class="ov-stat"><div class="n" style="color:var(--bad)">${sim.dropped}</div><div class="l">PERDIDOS</div></div>
     </div></div>
   <div class="ov-card"><div class="ov-title">// COMPOSICIÓN</div>${bars||'<div class="insp-empty" style="padding:10px">Añade dispositivos</div>'}</div>
+  ${diagOverviewHTML()}
   ${devs.length?'':'<div class="insp-empty">Toca un dispositivo en el panel izquierdo para empezar, o carga una <b>plantilla</b>.</div>'}`;
+}
+function diagOverviewHTML(){
+  const issues=diagnose();
+  if(!issues.length)return `<div class="ov-card" style="border-color:rgba(52,211,153,.3)"><div class="ov-title">// DIAGNÓSTICO</div><div style="font-size:12px;color:var(--good);margin-top:6px">✓ Sin problemas de configuración detectados</div></div>`;
+  const errs=issues.filter(i=>i.sev==='err').length;
+  const rows=issues.slice(0,12).map(i=>`<div class="diag-row ${i.sev}" data-diag="${i.devId}"><span>${i.sev==='err'?'⛔':'⚠️'}</span><b>${esc(project.devices[i.devId]?project.devices[i.devId].name:'?')}</b> — ${esc(i.msg)}</div>`).join('');
+  return `<div class="ov-card" style="border-color:${errs?'rgba(244,63,94,.35)':'rgba(251,191,36,.35)'}">
+    <div class="ov-title">// DIAGNÓSTICO · ${issues.length} aviso(s)</div>${rows}
+    ${issues.length>12?`<div style="font-size:11px;color:var(--muted2);margin-top:6px">… y ${issues.length-12} más</div>`:''}</div>`;
+}
+function subnetLine(d){
+  if(!d.ip||ipToInt(d.ip)===null||maskToBits(d.mask)===null)return '';
+  const r=usableRange(d.ip,d.mask),cd=cidrOf(d.ip,d.mask);if(!r||!cd)return '';
+  return `<div class="subnet-info mono">Subred ${cd} · usables ${r.first}–${r.last}${r.broadcast?(' · bcast '+r.broadcast):''}</div>`;
 }
 function deviceInspectorHTML(d){
   const t=TYPES[d.type];
   const hostOpts=Object.values(project.devices).filter(x=>x.id!==d.id&&TYPES[x.type].host)
     .map(x=>`<option value="${x.id}">${esc(x.name)} · ${esc(x.ip||'')}</option>`).join('');
+  const diags=diagCache[d.id]||[];
   return `
   <div class="insp-dev-head">
     <div class="insp-dev-icon" style="color:${t.color}"><svg viewBox="0 0 24 24">${GLYPHS[d.type]}</svg></div>
@@ -1084,9 +1198,14 @@ function deviceInspectorHTML(d){
     <div class="field"><label>Dirección IP</label><input id="fIp" class="mono" value="${esc(d.ip)}" placeholder="192.168.1.10"></div>
     <div class="field"><label>Máscara</label><input id="fMask" class="mono" value="${esc(d.mask)}" placeholder="255.255.255.0"></div>
   </div>`}
+  ${t.wan?'':subnetLine(d)}
   ${t.host?`<div class="field"><label>Puerta de enlace</label><input id="fGw" class="mono" value="${esc(d.gateway)}" placeholder="192.168.1.1"></div>`:''}
   ${t.ap?`<div class="field"><label>SSID (nombre wifi)</label><input id="fSsid" value="${esc(d.ssid)}"></div>`:''}
-  <div class="field"><label>Zona de seguridad</label><select id="fZone">${ZONES.map(z=>`<option value="${z}" ${((d.zone||'')===z)?'selected':''}>${ZONE_LABEL[z]}</option>`).join('')}</select></div>
+  <div class="field-row">
+    <div class="field"><label>Zona de seguridad</label><select id="fZone">${ZONES.map(z=>`<option value="${z}" ${((d.zone||'')===z)?'selected':''}>${ZONE_LABEL[z]}</option>`).join('')}</select></div>
+    ${(t.host)?`<div class="field"><label>VLAN</label><input id="fVlan" class="mono" value="${esc(d.vlan||'')}" placeholder="ej: 10"></div>`:''}
+  </div>
+  ${diags.length?`<div class="diag-box">${diags.map(x=>`<div class="diag-item ${x.sev}">${x.sev==='err'?'⛔':'⚠️'} ${esc(x.msg)}</div>`).join('')}</div>`:''}
   ${t.fw?`<div class="ov-card" style="padding:11px;margin-top:2px">
      <div class="ov-title" style="display:flex;justify-content:space-between;align-items:center">// FIREWALL
        <span style="font-family:var(--ui);font-weight:700;font-size:11px;color:${(d.rules||[]).length?'var(--accent)':'var(--muted2)'}">${(d.rules||[]).length} regla(s)</span></div>
@@ -1096,15 +1215,33 @@ function deviceInspectorHTML(d){
      <div class="ov-title" style="margin:12px 0 5px">// LOG EN VIVO</div>
      <div class="console" id="fwLog">${fwLogHTML(d.id)}</div>
    </div>`:''}
+  ${d.type==='dhcp'?`<div class="ov-card" style="padding:11px;margin-top:2px">
+     <div class="ov-title">// SERVIDOR DHCP</div>
+     <div class="field" style="margin:8px 0 0"><label>Red (CIDR)</label><input id="dhNet" class="mono" value="${esc(d.dhcpNet||'')}" placeholder="192.168.1.0/24"></div>
+     <div class="field-row"><div class="field"><label>Pool desde</label><input id="dhStart" class="mono" value="${esc(d.dhcpStart||'')}" placeholder="192.168.1.100"></div>
+       <div class="field"><label>Pool hasta</label><input id="dhEnd" class="mono" value="${esc(d.dhcpEnd||'')}" placeholder="192.168.1.200"></div></div>
+     <div class="field-row"><div class="field"><label>Gateway</label><input id="dhGw" class="mono" value="${esc(d.dhcpGw||'')}" placeholder="192.168.1.1"></div>
+       <div class="field"><label>DNS</label><input id="dhDns" class="mono" value="${esc(d.dhcpDns||'')}" placeholder="8.8.8.8"></div></div>
+     <button class="ibtn go" id="dhAssign" style="width:100%;margin-top:8px">📡 Asignar IPs a su segmento</button>
+     <div class="console" id="dhConsole" style="display:none;margin-top:8px"></div>
+   </div>`:''}
   <div class="field"><label>Notas / rol</label><textarea id="fNotes" rows="2" placeholder="Ej: servidor DNS, DMZ...">${esc(d.notes||'')}</textarea></div>
   ${t.host?`<div class="ov-card" style="padding:11px;margin-top:4px">
      <div class="ov-title">// PROBAR TRÁFICO</div>
      <div class="field" style="margin-bottom:8px"><label>Destino</label><select id="pingTarget">${hostOpts||'<option value="">— sin destinos —</option>'}</select></div>
-     <div class="field-row" style="margin-bottom:0">
+     <div class="field-row" style="margin-bottom:8px">
        <select id="pingSvc">${SERVICES.map(s=>`<option value="${s.key}">${s.label}${s.port?' · '+s.port:''}</option>`).join('')}</select>
        <button class="ibtn go" id="pingBtn" style="flex:0 0 auto;padding:9px 14px">Enviar ▶</button>
      </div>
-     <div class="console" id="pingConsole" style="display:none"></div>
+     <div class="field-row" style="margin-bottom:8px">
+       <button class="ibtn" id="inspectBtn" style="font-size:11px">🔍 Inspeccionar capas</button>
+       <button class="ibtn" id="traceBtn" style="font-size:11px">🧭 Traceroute</button>
+     </div>
+     <div class="field-row" style="margin-bottom:0">
+       <select id="flowSel"><option value="dhcp">Flujo DHCP (DORA)</option><option value="arp">Flujo ARP</option><option value="dns">Flujo DNS</option><option value="tcp">Handshake TCP</option></select>
+       <button class="ibtn go" id="flowBtn" style="flex:0 0 auto;padding:9px 14px">▶ Flujo</button>
+     </div>
+     <div class="console" id="pingConsole" style="display:none;margin-top:8px"></div>
    </div>`:''}
   <div class="insp-actions"><button class="ibtn danger" id="delDev">Eliminar dispositivo</button></div>`;
 }
@@ -1114,11 +1251,19 @@ function bindDeviceInspector(d){
   const upd=(prop,id,post)=>on(id,'input',()=>{d[prop]=$(id).value;if(post)post();scheduleSave();
     if(prop==='name'||prop==='ip'){renderNode(d.id);select('device',d.id);} });
   // name/ip re-render handled; use change to snapshot once
-  ['fName','fIp','fMask','fGw','fSsid','fNotes'].forEach(fid=>{const map={fName:'name',fIp:'ip',fMask:'mask',fGw:'gateway',fSsid:'ssid',fNotes:'notes'};
+  ['fName','fIp','fMask','fGw','fSsid','fNotes','fVlan'].forEach(fid=>{const map={fName:'name',fIp:'ip',fMask:'mask',fGw:'gateway',fSsid:'ssid',fNotes:'notes',fVlan:'vlan'};
     const e=$(fid);if(!e)return;e.addEventListener('focus',beginChange);
     e.addEventListener('input',()=>{d[map[fid]]=e.value;if(fid==='fName'||fid==='fIp'){renderNode(d.id);}scheduleSave();refreshMissions();});
-    e.addEventListener('change',()=>{commitChange();});});
-  on('fZone','change',()=>{beginChange();d.zone=$('fZone').value;commitChange();scheduleSave();refreshMissions();});
+    e.addEventListener('change',()=>{commitChange();if(['fIp','fMask','fGw','fVlan'].includes(fid)){afterMutate();}});});
+  ['dhNet','dhStart','dhEnd','dhGw','dhDns'].forEach(fid=>{const map={dhNet:'dhcpNet',dhStart:'dhcpStart',dhEnd:'dhcpEnd',dhGw:'dhcpGw',dhDns:'dhcpDns'};
+    const e=$(fid);if(!e)return;e.addEventListener('focus',beginChange);
+    e.addEventListener('input',()=>{d[map[fid]]=e.value;scheduleSave();});
+    e.addEventListener('change',()=>commitChange());});
+  on('dhAssign','click',()=>runDhcpAssign(d.id));
+  on('inspectBtn','click',()=>{const tg=$('pingTarget').value;if(!tg)return;runInspect(d.id,tg,$('pingSvc').value);});
+  on('traceBtn','click',()=>{const tg=$('pingTarget').value;if(!tg)return;runTraceroute(d.id,tg);});
+  on('flowBtn','click',()=>{const tg=$('pingTarget').value;runFlow(d.id,tg,$('flowSel').value);});
+  on('fZone','change',()=>{beginChange();d.zone=$('fZone').value;commitChange();scheduleSave();refreshMissions();afterMutate();});
   on('fDefPol','click',()=>{beginChange();d.defaultPolicy=(d.defaultPolicy==='deny'?'allow':'deny');commitChange();afterMutate();refreshMissions();});
   on('fEditRules','click',()=>openRulesModal(d.id));
   on('inspDict','click',()=>openDict(d.type));
@@ -1179,7 +1324,14 @@ function launchPacket(src,dst,opts={}){
   const sd=project.devices[src],dd=project.devices[dst];
   const pkt={proto:svc.proto,dport:svc.port,service:svc.key,
     srcIp:sd?sd.ip:'',dstIp:dd?dd.ip:'',srcZone:sd?sd.zone:'',dstZone:dd?dd.zone:''};
-  if(!path){sim.sent++;if(cb)cb({ok:false,reason:'sin ruta'});updateStats();return;}
+  if(!path){sim.sent++;sim.dropped++;if(cb)cb({ok:false,reason:'sin ruta física'});updateStats();return;}
+  // L3 deliverability (only enforced in realistic mode)
+  if(settings.realistic&&!opts.skipL3){
+    const del=deliverable(sd,dd);let lr=del.ok?'':del.reason;
+    if(del.ok&&del.needL3&&!path.nodes.slice(1,-1).some(id=>isL3(project.devices[id]))){del.ok=false;lr='destino en otra subred y no hay router/switch L3 en la ruta';}
+    if(del.ok&&del.nat&&!path.nodes.some(id=>natCapable(project.devices[id]))){del.ok=false;lr='no hay router/NAT de salida a internet';}
+    if(!del.ok){sim.sent++;sim.dropped++;if(sd)flash(sd.x,sd.y,'#f43f5e');updateStats();if(cb)cb({ok:false,reason:lr});return;}
+  }
   let dropAt=-1,reason='';
   // firewall rule evaluation on intermediate nodes
   for(let i=1;i<path.nodes.length-1;i++){const d=project.devices[path.nodes[i]];
@@ -1247,6 +1399,103 @@ function runPing(src,dst,serviceKey){
 }
 function addLine(cons,cls,txt){const d=document.createElement('div');d.className='ln '+cls;d.textContent=txt;cons.appendChild(d);cons.scrollTop=cons.scrollHeight;}
 
+/* ---------- Packet inspector (layers) + traceroute ---------- */
+function traceHops(src,dst,serviceKey){
+  const svc=svcByKey(serviceKey||'icmp');const sd=project.devices[src],dd=project.devices[dst];const out=[];
+  const push=(cls,txt)=>out.push({cls,txt});
+  if(!sd||!dd){push('er','dispositivo inexistente');return out;}
+  push('in',`── ${svc.label}: ${sd.name} → ${dd.name} ──`);
+  push('in',`L7 ${svc.label} · L4 ${svc.proto.toUpperCase()}${svc.port?(' puerto '+svc.port):''}`);
+  push('in',`L3 ${sd.ip||'(sin IP)'} → ${dd.ip||(dd.type==='internet'?'(internet)':'(sin IP)')}`);
+  const path=findPath(src,dst,true);
+  if(!path){push('er','✗ Sin ruta física entre los equipos');return out;}
+  if(settings.realistic){const del=deliverable(sd,dd);
+    if(del.ok&&del.needL3&&!path.nodes.slice(1,-1).some(id=>isL3(project.devices[id])))push('er','✗ L3: distinta subred y sin router/switch L3 en la ruta');
+    else if(del.ok&&del.nat&&!path.nodes.some(id=>natCapable(project.devices[id])))push('er','✗ L3: sin router/NAT de salida');
+    else if(!del.ok)push('er','✗ L3: '+del.reason);}
+  let cum=0;
+  for(let i=0;i<path.nodes.length;i++){const id=path.nodes[i],d=project.devices[id],t=TYPES[d.type]||{};
+    if(i>0)cum+=(project.links[path.links[i-1]]?.latency||0);
+    let role=i===0?'origen':(i===path.nodes.length-1?'destino':(isL3(d)?'enruta L3':'conmuta L2'));
+    let extra='';
+    if(t.fw){const v=evalFirewall(d,{proto:svc.proto,dport:svc.port,srcIp:sd.ip,dstIp:dd.ip,srcZone:sd.zone,dstZone:dd.zone});
+      extra+=v.action==='deny'?' · 🔥 DENY':' · 🔥 allow';}
+    if(natCapable(d)&&dd.type==='internet'&&role==='enruta L3')extra+=` · NAT ${sd.ip||''}→pública`;
+    push(i===path.nodes.length-1?'ok':'',`salto ${i}: ${d.name} [${role}]`+(i>0?` +${project.links[path.links[i-1]]?.latency||0}ms=${cum}ms`:'')+extra);}
+  push('ok',`Total ≈ ${cum}ms`);
+  return out;
+}
+function runInspect(src,dst,svc){const cons=$('pingConsole');if(!cons)return;cons.style.display='block';
+  traceHops(src,dst,svc).forEach(l=>addLine(cons,l.cls,l.txt));}
+function runTraceroute(src,dst){const cons=$('pingConsole');if(!cons)return;cons.style.display='block';
+  const sd=project.devices[src],dd=project.devices[dst];
+  addLine(cons,'in',`traceroute ${sd.name} → ${dd.name}`);
+  const path=findPath(src,dst,true);if(!path){addLine(cons,'er','✗ sin ruta');return;}
+  let cum=0;for(let i=1;i<path.nodes.length;i++){const d=project.devices[path.nodes[i]];cum+=(project.links[path.links[i-1]]?.latency||0);
+    addLine(cons,i===path.nodes.length-1?'ok':'in',`${i}  ${d.name}  ${(project.devices[path.nodes[i]].ip)||''}  ${cum}ms`);}
+}
+/* ---------- Protocol flows ---------- */
+function segHostsSameSeg(id,typePred){return l2Segment(id).map(x=>project.devices[x]).filter(x=>x&&x.id!==id&&(typePred?typePred(x):true));}
+function anyOfType(type){return Object.values(project.devices).find(d=>d.type===type&&d.status!=='down');}
+function runFlow(src,flowKind,extra){
+  const cons=$('pingConsole');if(!cons)return;cons.style.display='block';
+  const sd=project.devices[src];const seq=[];
+  const step=(from,to,label,color)=>seq.push({from,to,label,color});
+  if(flowKind==='dhcp'){
+    const srv=segHostsSameSeg(src,x=>x.type==='dhcp')[0]||anyOfType('dhcp');
+    if(!srv){addLine(cons,'er','DHCP: no hay servidor DHCP en el segmento');return;}
+    addLine(cons,'in','── DHCP DORA ──');
+    step(src,srv.id,'1) DISCOVER (broadcast)','#fbbf24');step(srv.id,src,'2) OFFER','#38bdf8');
+    step(src,srv.id,'3) REQUEST','#fbbf24');step(srv.id,src,'4) ACK','#34d399');
+  } else if(flowKind==='arp'){
+    const tgt=project.devices[extra]||segHostsSameSeg(src,x=>TYPES[x.type].host)[0];
+    if(!tgt){addLine(cons,'er','ARP: elige un destino en el mismo segmento');return;}
+    addLine(cons,'in','── ARP ──');
+    step(src,tgt.id,'who-has '+(tgt.ip||tgt.name)+'? (broadcast)','#a78bfa');step(tgt.id,src,'is-at (MAC de '+tgt.name+')','#34d399');
+  } else if(flowKind==='dns'){
+    const srv=anyOfType('dns');if(!srv){addLine(cons,'er','DNS: no hay servidor DNS en la red');return;}
+    addLine(cons,'in','── DNS ──');
+    step(src,srv.id,'query A ejemplo.com','#38bdf8');step(srv.id,src,'response 93.184.216.34','#34d399');
+  } else if(flowKind==='tcp'){
+    const tgt=project.devices[extra];if(!tgt){addLine(cons,'er','TCP: elige un destino');return;}
+    addLine(cons,'in','── TCP handshake ──');
+    step(src,tgt.id,'SYN','#38bdf8');step(tgt.id,src,'SYN-ACK','#a78bfa');step(src,tgt.id,'ACK','#34d399');
+  }
+  let i=0;(function next(){if(i>=seq.length){addLine(cons,'ok','✓ flujo completado');
+      if(flowKind==='dhcp')maybeDhcpAssignOne(src);return;}
+    const s=seq[i++];addLine(cons,'', s.label);
+    launchPacket(s.from,s.to,{color:s.color,skipL3:true,cb:()=>setTimeout(next,250)});
+  })();
+}
+function poolList(net,start,end){const s=ipToInt(start),e=ipToInt(end);if(s===null||e===null||s>e)return [];
+  const out=[];for(let n=s;n<=e&&out.length<255;n++)out.push(intToIp(n>>>0));return out;}
+function runDhcpAssign(dhcpId){
+  const cons=$('dhConsole');const d=project.devices[dhcpId];if(!d)return;if(cons)cons.style.display='block';
+  const log=(cls,t)=>cons?addLine(cons,cls,t):0;
+  const pool=poolList(d.dhcpNet,d.dhcpStart,d.dhcpEnd);
+  if(!pool.length){log('er','Configura la red y el pool (desde/hasta) válidos');toast('Pool DHCP inválido','bad');return;}
+  const seg=l2Segment(dhcpId).map(x=>project.devices[x]).filter(x=>x&&TYPES[x.type].host&&x.id!==dhcpId);
+  const taken=new Set(Object.values(project.devices).map(x=>x.ip).filter(Boolean));
+  let idx=0,assigned=0;beginChange();
+  seg.forEach(h=>{ if(h.ip&&ipToInt(h.ip)!==null&&!h._dhcp) return; // keep static IPs
+    while(idx<pool.length&&taken.has(pool[idx]))idx++; if(idx>=pool.length){return;}
+    h.ip=pool[idx++];h.mask=cidrMaskFromNet(d.dhcpNet)||h.mask||'255.255.255.0';
+    if(d.dhcpGw)h.gateway=d.dhcpGw; h._dhcp=true; taken.add(h.ip); assigned++; log('ok',`${h.name} ← ${h.ip}`);});
+  commitChange();afterMutate();
+  log(assigned?'ok':'in',assigned?`✓ ${assigned} equipo(s) configurados por DHCP`:'No había equipos sin IP en el segmento');
+  toast(assigned?`DHCP: ${assigned} IP(s) asignadas`:'DHCP: nada que asignar', assigned?'good':undefined);
+}
+function cidrMaskFromNet(net){const bits=maskToBits((String(net||'').split('/')[1]));if(bits===null)return null;
+  const m=bits===0?0:(0xffffffff<<(32-bits))>>>0;return intToIp(m>>>0);}
+function maybeDhcpAssignOne(hostId){ // after a DORA flow, give this host an IP if a DHCP serves its segment
+  const h=project.devices[hostId];if(!h)return;
+  const srv=l2Segment(hostId).map(x=>project.devices[x]).find(x=>x&&x.type==='dhcp');
+  if(!srv)return;const pool=poolList(srv.dhcpNet,srv.dhcpStart,srv.dhcpEnd);if(!pool.length)return;
+  const taken=new Set(Object.values(project.devices).map(x=>x.ip).filter(Boolean));
+  const free=pool.find(ip=>!taken.has(ip));if(!free)return;
+  beginChange();h.ip=free;h.mask=cidrMaskFromNet(srv.dhcpNet)||h.mask;if(srv.dhcpGw)h.gateway=srv.dhcpGw;h._dhcp=true;commitChange();afterMutate();
+}
+
 /* ---------- Live sim ---------- */
 function toggleSim(){sim.on=!sim.on;$('btnSim').classList.toggle('active',sim.on);
   const svg=$('btnSim').querySelector('svg');
@@ -1275,8 +1524,13 @@ function updateStats(){
     <div class="chip"><span class="dot" style="background:var(--accent)"></span><span class="cv">${devs.length}</span><span class="cl">disp.</span></div>
     <div class="chip"><span class="dot" style="background:var(--good)"></span><span class="cv">${up}</span><span class="cl">activos</span></div>
     <div class="chip"><span class="cv">${links}</span><span class="cl">enlaces</span></div>
+    ${(()=>{const n=(diagCache&&Object.keys(diagCache).length)?Object.keys(diagCache).length:0;
+      return n?`<div class="chip" id="healthChip" style="cursor:pointer"><span class="dot" style="background:var(--warn)"></span><span class="cv" style="color:var(--warn)">${n}</span><span class="cl">avisos</span></div>`
+      :`<div class="chip"><span class="dot" style="background:var(--good)"></span><span class="cl">red OK</span></div>`;})()}
+    ${settings.realistic?'<div class="chip"><span class="dot" style="background:var(--accent2)"></span><span class="cl">L3 real</span></div>':''}
     ${sim.sent?`<div class="chip"><span class="cv" style="color:${rate>90?'var(--good)':rate>60?'var(--warn)':'var(--bad)'}">${rate}%</span><span class="cl">entrega</span></div>
     <div class="chip"><span class="cv">${sim.sent}</span><span class="cl">paq.</span></div>`:''}`;
+  const hc=$('healthChip');if(hc)hc.addEventListener('click',()=>{select(null);if(isMobile())openPanel('inspector');});
   if(selected===null&&$('inspTitle').textContent==='RESUMEN')$('inspectorBody').innerHTML=overviewHTML();
 }
 
@@ -1321,14 +1575,14 @@ const TEMPLATES=[
     const fw=grid(p,'firewall','Firewall',0,-160,{policy:'allow'});
     const r=grid(p,'router','Router Núcleo',0,-70,{ip:'172.16.0.1'});
     const core=grid(p,'switch','Switch Core',0,20);
-    const srv=grid(p,'server','Srv Escolar',180,-10,{ip:'172.16.0.5',gateway:'172.16.0.1',notes:'Web + archivos'});
+    const srv=grid(p,'server','Srv Escolar',180,-10,{ip:'172.16.0.5',mask:'255.255.0.0',gateway:'172.16.0.1',notes:'Web + archivos'});
     const swA=grid(p,'switch','Switch Aula A',-200,120);
     const swB=grid(p,'switch','Switch Aula B',200,120);
     const ap=grid(p,'ap','WiFi Alumnos',0,120,{ssid:'Colegio-Alumnos'});
     conn(p,isp,fw);conn(p,fw,r);conn(p,r,core);conn(p,core,srv);conn(p,core,swA);conn(p,core,swB);conn(p,core,ap);
-    for(let i=0;i<4;i++){const pc=grid(p,'pc','A-PC'+(i+1),-320+i*55,220,{ip:'172.16.1.'+(10+i),gateway:'172.16.0.1'});conn(p,swA,pc);}
-    for(let i=0;i<4;i++){const pc=grid(p,'pc','B-PC'+(i+1),120+i*55,220,{ip:'172.16.2.'+(10+i),gateway:'172.16.0.1'});conn(p,swB,pc);}
-    const lp=grid(p,'laptop','Tablet',60,210,{ip:'172.16.3.10',gateway:'172.16.0.1'});conn(p,ap,lp);
+    for(let i=0;i<4;i++){const pc=grid(p,'pc','A-PC'+(i+1),-320+i*55,220,{ip:'172.16.1.'+(10+i),mask:'255.255.0.0',gateway:'172.16.0.1'});conn(p,swA,pc);}
+    for(let i=0;i<4;i++){const pc=grid(p,'pc','B-PC'+(i+1),120+i*55,220,{ip:'172.16.2.'+(10+i),mask:'255.255.0.0',gateway:'172.16.0.1'});conn(p,swB,pc);}
+    const lp=grid(p,'laptop','Tablet',60,210,{ip:'172.16.3.10',mask:'255.255.0.0',gateway:'172.16.0.1'});conn(p,ap,lp);
   }},
   {key:'university',ico:'🏛️',name:'Universidad',diff:'hard',desc:'Red por facultades: routers, firewall, servidores DNS/Web y varios switches con wifi.',build(p){
     const isp=grid(p,'internet','Internet',0,-300);
@@ -1346,36 +1600,36 @@ const TEMPLATES=[
     conn(p,core,rf1);conn(p,core,rf2);conn(p,core,ap);conn(p,rf1,s1);conn(p,rf2,s2);
     for(let i=0;i<3;i++){const pc=grid(p,'pc','ING-'+(i+1),-320+i*50,280,{ip:'10.10.1.'+(10+i),gateway:'10.10.1.1'});conn(p,s1,pc);}
     for(let i=0;i<3;i++){const pc=grid(p,'pc','MED-'+(i+1),160+i*50,280,{ip:'10.10.2.'+(10+i),gateway:'10.10.2.1'});conn(p,s2,pc);}
-    const ph=grid(p,'phone','Alumno',60,200,{ip:'10.10.9.10',gateway:'10.10.0.1'});conn(p,ap,ph);
+    const ph=grid(p,'phone','Alumno',60,200,{ip:'10.10.0.9',gateway:'10.10.0.1'});conn(p,ap,ph);
   }},
   {key:'techcenter',ico:'🔧',name:'Centro técnico',diff:'med',desc:'Laboratorios con switches, servidor de prácticas, firewall y router.',build(p){
     const isp=grid(p,'internet','Internet',0,-240);
     const fw=grid(p,'firewall','Firewall',0,-150,{policy:'allow'});
     const r=grid(p,'router','Router',0,-60,{ip:'192.168.10.1'});
     const core=grid(p,'switch','Core',0,30);
-    const srv=grid(p,'server','Srv Prácticas',190,0,{ip:'192.168.10.5',gateway:'192.168.10.1'});
-    const nas=grid(p,'nas','NAS Imágenes',190,90,{ip:'192.168.10.6',gateway:'192.168.10.1'});
+    const srv=grid(p,'server','Srv Prácticas',190,0,{ip:'192.168.10.5',mask:'255.255.0.0',gateway:'192.168.10.1'});
+    const nas=grid(p,'nas','NAS Imágenes',190,90,{ip:'192.168.10.6',mask:'255.255.0.0',gateway:'192.168.10.1'});
     const l1=grid(p,'switch','Lab 1',-180,120);const l2=grid(p,'switch','Lab 2',180,150);
     conn(p,isp,fw);conn(p,fw,r);conn(p,r,core);conn(p,core,srv);conn(p,core,nas);conn(p,core,l1);conn(p,core,l2);
-    for(let i=0;i<4;i++){const pc=grid(p,'pc','L1-'+(i+1),-300+i*50,220,{ip:'192.168.11.'+(10+i),gateway:'192.168.10.1'});conn(p,l1,pc);}
-    for(let i=0;i<3;i++){const pc=grid(p,'pc','L2-'+(i+1),110+i*50,240,{ip:'192.168.12.'+(10+i),gateway:'192.168.10.1'});conn(p,l2,pc);}
+    for(let i=0;i<4;i++){const pc=grid(p,'pc','L1-'+(i+1),-300+i*50,220,{ip:'192.168.11.'+(10+i),mask:'255.255.0.0',gateway:'192.168.10.1'});conn(p,l1,pc);}
+    for(let i=0;i<3;i++){const pc=grid(p,'pc','L2-'+(i+1),110+i*50,240,{ip:'192.168.12.'+(10+i),mask:'255.255.0.0',gateway:'192.168.10.1'});conn(p,l2,pc);}
   }},
   {key:'bank',ico:'🏦',name:'Banco (robusta)',diff:'exp',desc:'DMZ segmentada, doble firewall, routers redundantes y servidores críticos.',build(p){
     const isp=grid(p,'internet','Internet',0,-320);
     const fwExt=grid(p,'firewall','Firewall Exterior',0,-230,{policy:'allow',notes:'Perímetro'});
     const dmzSw=grid(p,'switch','Switch DMZ',-180,-150);
-    const web=grid(p,'server','Web público',-300,-90,{ip:'203.0.113.10',notes:'DMZ'});
-    const mail=grid(p,'server','Correo',-300,0,{ip:'203.0.113.11',notes:'DMZ'});
+    const web=grid(p,'server','Web público',-300,-90,{ip:'203.0.113.10',gateway:'203.0.113.1',zone:'DMZ',notes:'DMZ'});
+    const mail=grid(p,'server','Correo',-300,0,{ip:'203.0.113.11',gateway:'203.0.113.1',zone:'DMZ',notes:'DMZ'});
     const fwInt=grid(p,'firewall','Firewall Interior',0,-120,{policy:'allow',notes:'Núcleo'});
     const r1=grid(p,'router','Router A',-90,-30,{ip:'10.0.0.1'});
     const r2=grid(p,'router','Router B (redund.)',90,-30,{ip:'10.0.0.2'});
     const core=grid(p,'switch','Core Switch',0,60);
-    const dbs=grid(p,'server','BD Transacciones',200,20,{ip:'10.0.0.50',notes:'Crítico'});
-    const app=grid(p,'server','Srv Aplicaciones',200,110,{ip:'10.0.0.51'});
+    const dbs=grid(p,'server','BD Transacciones',200,20,{ip:'10.0.0.50',mask:'255.255.0.0',gateway:'10.0.0.1',notes:'Crítico'});
+    const app=grid(p,'server','Srv Aplicaciones',200,110,{ip:'10.0.0.51',mask:'255.255.0.0',gateway:'10.0.0.1'});
     const swOf=grid(p,'switch','Switch Oficinas',-180,140);
     conn(p,isp,fwExt);conn(p,fwExt,dmzSw);conn(p,dmzSw,web);conn(p,dmzSw,mail);conn(p,fwExt,fwInt);
     conn(p,fwInt,r1);conn(p,fwInt,r2);conn(p,r1,core);conn(p,r2,core);conn(p,core,dbs);conn(p,core,app);conn(p,core,swOf);
-    for(let i=0;i<4;i++){const pc=grid(p,'pc','Cajero-'+(i+1),-300+i*55,230,{ip:'10.0.1.'+(10+i),gateway:'10.0.0.1'});conn(p,swOf,pc);}
+    for(let i=0;i<4;i++){const pc=grid(p,'pc','Cajero-'+(i+1),-300+i*55,230,{ip:'10.0.1.'+(10+i),mask:'255.255.0.0',gateway:'10.0.0.1'});conn(p,swOf,pc);}
   }},
   {key:'agency',ico:'🛡️',name:'Agencia de seguridad',diff:'exp',desc:'Segmentación estricta, sin wifi en el núcleo, servidores aislados y monitorización.',build(p){
     const isp=grid(p,'internet','Internet',0,-300);
@@ -1383,11 +1637,11 @@ const TEMPLATES=[
     const fw2=grid(p,'firewall','Firewall Interno',0,-110,{policy:'allow'});
     const r=grid(p,'router','Router Seguro',0,-20,{ip:'10.99.0.1'});
     const core=grid(p,'switch','Core Aislado',0,70);
-    const siem=grid(p,'server','SIEM / Logs',200,10,{ip:'10.99.0.9',notes:'Monitorización'});
-    const vault=grid(p,'server','Bóveda datos',200,100,{ip:'10.99.0.10',notes:'Clasificado'});
+    const siem=grid(p,'server','SIEM / Logs',200,10,{ip:'10.99.0.9',mask:'255.255.0.0',gateway:'10.99.0.1',notes:'Monitorización'});
+    const vault=grid(p,'server','Bóveda datos',200,100,{ip:'10.99.0.10',mask:'255.255.0.0',gateway:'10.99.0.1',notes:'Clasificado'});
     const swOps=grid(p,'switch','Switch Operaciones',-190,150);
     conn(p,isp,fw1);conn(p,fw1,fw2);conn(p,fw2,r);conn(p,r,core);conn(p,core,siem);conn(p,core,vault);conn(p,core,swOps);
-    for(let i=0;i<4;i++){const pc=grid(p,'pc','Op-'+(i+1),-310+i*55,240,{ip:'10.99.1.'+(10+i),gateway:'10.99.0.1'});conn(p,swOps,pc);}
+    for(let i=0;i<4;i++){const pc=grid(p,'pc','Op-'+(i+1),-310+i*55,240,{ip:'10.99.1.'+(10+i),mask:'255.255.0.0',gateway:'10.99.0.1'});conn(p,swOps,pc);}
   }},
 ];
 function loadTemplate(key){
@@ -1810,6 +2064,10 @@ $('btnExport').addEventListener('click',()=>openModal('modalExport'));
 $('btnHelp').addEventListener('click',()=>openModal('modalHelp'));
 $('btnDict').addEventListener('click',()=>openDict());
 $('dictSearch').addEventListener('input',e=>{dictExpanded=null;renderDict(e.target.value);});
+$('btnL3').addEventListener('click',()=>{settings.realistic=!settings.realistic;store.settings=settings;
+  $('btnL3').classList.toggle('active',settings.realistic);commitSave();updateStats();
+  toast(settings.realistic?'Modo realista L3 activado':'Modo realista L3 desactivado',settings.realistic?'good':undefined);});
+$('inspectorBody').addEventListener('click',e=>{const r=e.target.closest('[data-diag]');if(r)select('device',r.getAttribute('data-diag'));});
 $('mbClose').addEventListener('click',stopMission);
 $('btnNewProject').addEventListener('click',()=>{setProject(newProject('Nueva red'));closeModal();toast('Proyecto nuevo creado','good');});
 $('expJson').addEventListener('click',exportJSON);
@@ -1837,6 +2095,7 @@ function boot(){
   else if(ids.length)setProject(structuredClone(store.projects[ids[0]]));
   else {const p=newProject('Mi red',TEMPLATES[0].build);setProject(p);}
   setMode('select');
+  $('btnL3').classList.toggle('active',settings.realistic);
   // first-run hint
   if(!ids.length)setTimeout(()=>toast('¡Bienvenido! Explora las Misiones para aprender 🚀'),700);
 }
