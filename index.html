@@ -336,6 +336,8 @@ input,select,textarea{font-family:inherit;font-size:13px}
 .dict-body p{font-size:13px;color:var(--muted);line-height:1.55;margin-top:7px}
 .dict-body b{color:var(--text)}
 .dict-cmp{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:8px 10px;margin-top:9px!important}
+.dict-analogy{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);border-left:3px solid var(--good);border-radius:8px;padding:8px 10px;margin-top:7px!important}
+.dict-analogy b{color:var(--good)}
 @media(max-width:560px){.dict-body{padding-left:12px}}
 
 /* L3 subnet + diagnostics */
@@ -699,6 +701,48 @@ const DICT={
   iot:{layer:'Host (final)',what:'Dispositivo IoT (sensor/actuador) que mide o controla algo y lo reporta por la red.',use:'Domótica, industria, smart building.',compare:'Suelen ser poco seguros: conviene aislarlos en una VLAN/zona propia.'},
   plc:{layer:'Host (OT)',what:'Controlador Lógico Programable (PLC/SCADA): automatiza maquinaria en entornos industriales (redes OT).',use:'Fábricas, plantas y servicios críticos.',compare:'Las redes OT priorizan disponibilidad y se separan de la red IT (de oficina).'},
   pos:{layer:'Host (final)',what:'Terminal de punto de venta (TPV): procesa cobros en comercios.',use:'Retail; maneja datos de pago, así que se segmenta y protege (PCI-DSS).'},
+};
+// Enriquecimiento del diccionario: analogía sencilla, puertos/protocolo típicos y ejemplo real
+const DICT2={
+  internet:{analogy:'Es la "calle pública" fuera de tu casa o edificio: todo lo que sale a la red mundial pasa por aquí.',example:'Google, YouTube, tu banco online.'},
+  modem:{analogy:'Un traductor entre la línea del operador y tu red doméstica.',ports:'Línea del operador (cable/DSL) ↔ Ethernet',example:'La cajita que instala el técnico del cable.'},
+  ont:{analogy:'El traductor de la LUZ de la fibra a señal de red normal.',ports:'Fibra óptica ↔ Ethernet',example:'La roseta/ONT de fibra en la pared.'},
+  router5g:{analogy:'Un router cuyo "cable" es una tarjeta SIM.',ports:'SIM 4G/5G ↔ WiFi/Ethernet',example:'MiFi de viaje o router con SIM de respaldo.'},
+  repeater:{analogy:'Un altavoz que repite el wifi para que llegue más lejos.',example:'Extensor TP-Link; nodos mesh Google Nest.'},
+  router:{analogy:'El cartero que decide por qué camino enviar cada paquete entre redes distintas.',ports:'Decide por IP (capa 3); suele hacer NAT y DHCP',example:'El router de tu casa; el que une dos sedes.'},
+  l3switch:{analogy:'Un switch con "cerebro de router": conmuta rapidísimo y además cruza entre VLANs.',ports:'MAC (L2) + IP/VLAN (L3)',example:'El núcleo de un edificio con muchas VLANs.'},
+  switch:{analogy:'Una regleta inteligente: manda cada dato solo al puerto del destino, no a todos.',ports:'Reenvía por dirección MAC (capa 2)',example:'El switch donde enchufas PCs e impresoras.'},
+  ap:{analogy:'La antena que convierte el cable en wifi.',ports:'Wi-Fi (2.4/5/6 GHz) ↔ Ethernet',example:'El punto de acceso del techo de una oficina.'},
+  wlc:{analogy:'El director de orquesta de muchos puntos de acceso a la vez.',example:'Controladora que gestiona 200 APs de un campus.'},
+  loadbalancer:{analogy:'El acomodador que reparte a la gente entre varias cajas para que ninguna se sature.',ports:'Reparte por puerto (L4) o por HTTP (L7)',example:'Reparte las visitas de una web entre 5 servidores.'},
+  firewall:{analogy:'El portero con una lista: deja pasar o bloquea según reglas.',ports:'Filtra por IP, puerto y protocolo',example:'"Permite web y correo; bloquea el resto".'},
+  ids:{analogy:'Una cámara de seguridad: ve y avisa, pero no cierra la puerta.',ports:'Escucha una copia del tráfico (fuera de ruta)',example:'Snort/Suricata en modo detección.'},
+  ips:{analogy:'Un guardia que, además de ver, bloquea al intruso en el acto.',ports:'En línea, dentro de la ruta del tráfico',example:'Suricata cortando un exploit en tiempo real.'},
+  waf:{analogy:'Un portero especializado solo en ataques a páginas web.',ports:'HTTP/HTTPS (capa 7)',example:'Cloudflare/ModSecurity frenando un SQLi.'},
+  vpn:{analogy:'Un túnel privado y cifrado por dentro de internet.',ports:'IPsec, OpenVPN, WireGuard',example:'Teletrabajar como si estuvieras en la oficina.'},
+  proxy:{analogy:'Un recadero que pide las webs por ti, filtra y guarda copias.',ports:'HTTP/HTTPS (3128, 8080…)',example:'Proxy corporativo que bloquea y cachea webs.'},
+  bastion:{analogy:'La única puerta vigilada para entrar a administrar los servidores.',ports:'SSH (22) / RDP (3389)',example:'Jump host desde el que saltas al resto.'},
+  honeypot:{analogy:'Un cebo: un cofre falso para pillar a los ladrones y estudiarlos.',example:'Servidor señuelo que registra a los atacantes.'},
+  server:{analogy:'El camarero: recibe pedidos y sirve respuestas.',ports:'Depende del servicio (web 80/443, etc.)',example:'Servidor web, de correo o de aplicaciones.'},
+  dns:{analogy:'La agenda de contactos de internet: nombre → número (IP).',ports:'UDP/TCP 53',example:'Traduce google.com → 142.250.x.x.'},
+  dhcp:{analogy:'El recepcionista que te da tu número de habitación (IP) al llegar.',ports:'UDP 67/68',example:'Tu móvil recibe IP al conectarse al wifi.'},
+  dc:{analogy:'La oficina de RRHH y llaves: usuarios, contraseñas y permisos.',ports:'LDAP 389 / Kerberos 88',example:'Active Directory: entras con tu cuenta corporativa.'},
+  siem:{analogy:'La sala de control que junta todas las cámaras y alarmas en pantallas.',example:'Splunk/Wazuh correlacionando logs y alertas.'},
+  radius:{analogy:'El control de acceso que valida quién puede entrar a la red.',ports:'RADIUS 1812/1813 · 802.1X',example:'Wifi de empresa con usuario y contraseña.'},
+  monitor:{analogy:'El panel del coche: te avisa si algo va mal o va lento.',example:'Zabbix/Nagios/Grafana vigilando la red.'},
+  backup:{analogy:'La fotocopia de seguridad por si pierdes el original.',example:'Copias diarias para recuperarte de un ransomware.'},
+  nas:{analogy:'Un disco duro compartido para toda la red.',ports:'SMB 445 / NFS 2049',example:'Synology con la carpeta común de la empresa.'},
+  pc:{analogy:'El cliente típico: pide servicios a la red.',example:'El ordenador de un puesto de trabajo.'},
+  laptop:{analogy:'Como un PC pero con patas: se mueve y suele ir por wifi.',example:'Portátil de un empleado.'},
+  phone:{analogy:'Un cliente de bolsillo, casi siempre por wifi.',example:'Smartphone conectado a la red.'},
+  tablet:{analogy:'Pantalla táctil cliente de la red, por wifi.',example:'Tablet de una sala de reuniones.'},
+  tv:{analogy:'Un cliente "tragón" de datos para vídeo.',example:'Smart TV con Netflix/YouTube.'},
+  printer:{analogy:'La impresora de todos, compartida en la red.',ports:'IPP 631 / RAW 9100',example:'La multifunción de la oficina.'},
+  voip:{analogy:'Un teléfono que habla por internet en vez de por la línea de siempre.',ports:'SIP 5060 · RTP (voz)',example:'Teléfono de escritorio de una empresa.'},
+  camera:{analogy:'Una cámara que sube el vídeo por la red.',ports:'RTSP 554 / ONVIF',example:'Cámara de videovigilancia IP.'},
+  iot:{analogy:'Cacharritos inteligentes que hablan por la red.',ports:'MQTT 1883 / HTTP',example:'Sensor de temperatura, bombilla o enchufe wifi.'},
+  plc:{analogy:'El cerebro que controla las máquinas de una fábrica.',ports:'Modbus 502 / Profinet (redes OT)',example:'Autómata que mueve una cinta transportadora.'},
+  pos:{analogy:'La caja registradora conectada que cobra con tarjeta.',ports:'HTTPS al banco (pasarela de pago)',example:'El datáfono/TPV de una tienda.'},
 };
 
 /* ---------- Traffic model (services) ---------- */
@@ -2037,39 +2081,51 @@ function bindRulesModal(){
   });
 }
 /* ═══════════════ Device dictionary / encyclopedia ═══════════════ */
-let dictExpanded=null;
-function dictMatch(k,q){if(!q)return true;q=q.toLowerCase();const t=TYPES[k],d=DICT[k]||{};
-  return (t.label+' '+(t.desc||'')+' '+(t.role||'')+' '+(d.layer||'')+' '+(d.what||'')+' '+(d.use||'')+' '+(d.compare||'')+' '+k).toLowerCase().includes(q);}
+let dictExpanded=null,dictFocus=null;
+function dictMatch(k,q){if(!q)return true;q=q.toLowerCase();const t=TYPES[k],d=DICT[k]||{},e=DICT2[k]||{};
+  return (t.label+' '+(t.desc||'')+' '+(t.role||'')+' '+(d.layer||'')+' '+(d.what||'')+' '+(d.use||'')+' '+(d.compare||'')+' '+(e.analogy||'')+' '+(e.ports||'')+' '+(e.example||'')+' '+k).toLowerCase().includes(q);}
+function dictCardHTML(k,open){const t=TYPES[k],d=DICT[k]||{},e=DICT2[k]||{};
+  return `<div class="dict-card${open?' open':''}" data-k="${k}">
+    <div class="dict-head">
+      <div class="dict-ic" style="color:${t.color}"><svg viewBox="0 0 24 24">${GLYPHS[k]}</svg></div>
+      <div class="dict-meta"><div class="dict-name">${esc(t.label)} <span class="dict-layer">${esc(d.layer||'')}</span></div>
+        <div class="dict-desc">${esc(t.desc||'')}</div></div>
+      <span class="dict-caret">▾</span>
+    </div>
+    <div class="dict-body">
+      ${e.analogy?`<p class="dict-analogy"><b>🔑 En simple:</b> ${esc(e.analogy)}</p>`:''}
+      ${d.what?`<p><b>Qué hace:</b> ${esc(d.what)}</p>`:''}
+      ${d.use?`<p><b>Para qué se usa:</b> ${esc(d.use)}</p>`:''}
+      ${e.ports?`<p><b>Puertos / protocolo:</b> <span class="mono">${esc(e.ports)}</span></p>`:''}
+      ${e.example?`<p><b>Ejemplo real:</b> ${esc(e.example)}</p>`:''}
+      ${d.compare?`<p class="dict-cmp"><b>💡 Diferencia clave:</b> ${esc(d.compare)}</p>`:''}
+    </div></div>`;}
 function renderDict(q){
-  const list=$('dictList');if(!list)return;let html='';
-  CATS.forEach(cat=>{
-    const items=Object.keys(TYPES).filter(k=>TYPES[k].cat===cat&&dictMatch(k,q));
+  const list=$('dictList');if(!list)return;q=q||'';const search=$('dictSearch');
+  if(dictFocus&&!q){
+    if(search)search.style.display='none';
+    const k=dictFocus;
+    list.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px">
+        <div class="pal-cat" style="margin:0">FICHA · ${esc((TYPES[k]||{}).label||k)}</div>
+        <button class="mini-btn" id="dictAll">📖 Ver todos →</button></div>`+dictCardHTML(k,true);
+    const all=$('dictAll');if(all)all.addEventListener('click',()=>{dictFocus=null;dictExpanded=null;if(search)search.style.display='';renderDict('');});
+    list.querySelectorAll('.dict-head').forEach(h=>h.addEventListener('click',()=>h.parentElement.classList.toggle('open')));
+    return;
+  }
+  if(search)search.style.display='';
+  let html='';
+  CATS.forEach(cat=>{const items=Object.keys(TYPES).filter(k=>TYPES[k].cat===cat&&dictMatch(k,q));
     if(!items.length)return;
     html+=`<div class="pal-cat" style="margin-top:14px">${esc(cat.toUpperCase())}</div>`;
-    items.forEach(k=>{const t=TYPES[k],d=DICT[k]||{};
-      html+=`<div class="dict-card${dictExpanded===k?' open':''}" data-k="${k}">
-        <div class="dict-head">
-          <div class="dict-ic" style="color:${t.color}"><svg viewBox="0 0 24 24">${GLYPHS[k]}</svg></div>
-          <div class="dict-meta"><div class="dict-name">${esc(t.label)} <span class="dict-layer">${esc(d.layer||'')}</span></div>
-            <div class="dict-desc">${esc(t.desc||'')}</div></div>
-          <span class="dict-caret">▾</span>
-        </div>
-        <div class="dict-body">
-          ${d.what?`<p><b>Qué hace:</b> ${esc(d.what)}</p>`:''}
-          ${d.use?`<p><b>Para qué se usa:</b> ${esc(d.use)}</p>`:''}
-          ${d.compare?`<p class="dict-cmp"><b>💡 Diferencia clave:</b> ${esc(d.compare)}</p>`:''}
-        </div></div>`;});
-  });
+    items.forEach(k=>{html+=dictCardHTML(k,dictExpanded===k);});});
   list.innerHTML=html||'<div class="insp-empty">Sin resultados.</div>';
   list.querySelectorAll('.dict-head').forEach(h=>h.addEventListener('click',()=>h.parentElement.classList.toggle('open')));
 }
 function openDict(typeKey){
-  dictExpanded=typeKey||null;
+  dictFocus=typeKey||null;dictExpanded=typeKey||null;
   const s=$('dictSearch');if(s)s.value='';
   renderDict('');
   openModal('modalDict');
-  if(typeKey){const card=document.querySelector('.dict-card[data-k="'+typeKey+'"]');
-    if(card)setTimeout(()=>card.scrollIntoView({block:'center',behavior:'smooth'}),60);}
 }
 function diffClass(d){return{easy:'b-easy',med:'b-med',hard:'b-hard',exp:'b-exp'}[d];}
 function diffLabel(d){return{easy:'FÁCIL',med:'MEDIO',hard:'AVANZADO',exp:'EXPERTO'}[d];}
@@ -2103,7 +2159,7 @@ $('btnProjects').addEventListener('click',()=>{renderProjectsModal();openModal('
 $('btnExport').addEventListener('click',()=>openModal('modalExport'));
 $('btnHelp').addEventListener('click',()=>openModal('modalHelp'));
 $('btnDict').addEventListener('click',()=>openDict());
-$('dictSearch').addEventListener('input',e=>{dictExpanded=null;renderDict(e.target.value);});
+$('dictSearch').addEventListener('input',e=>{dictExpanded=null;dictFocus=null;renderDict(e.target.value);});
 $('btnL3').addEventListener('click',()=>{settings.realistic=!settings.realistic;store.settings=settings;
   $('btnL3').classList.toggle('active',settings.realistic);commitSave();updateStats();
   toast(settings.realistic?'Modo realista L3 activado':'Modo realista L3 desactivado',settings.realistic?'good':undefined);});
